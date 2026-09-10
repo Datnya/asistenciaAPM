@@ -28,10 +28,9 @@ export async function correctAdminAttendance(formData: FormData) {
   const exitTime = time.safeParse(formData.get("exitTime"));
   const declared = normalizeDeclaredHours(String(formData.get("declaredHours") ?? ""));
   const declaredMinutes = declaredHoursToMinutes(declared);
-  const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!consultantId.success || !sessionId.success || !workDate.success || !clientId.success || !type.success || !entryTime.success || !exitTime.success || !declaredMinutes || reason.length < 1 || reason.length > 500) {
-    return { error: "Completa fecha, tipo, horas declaradas válidas y el motivo de la corrección." };
+  if (!consultantId.success || !sessionId.success || !workDate.success || !clientId.success || !type.success || !entryTime.success || !exitTime.success || !declaredMinutes) {
+    return { error: "Completa fecha, cliente, tipo y horas declaradas válidas." };
   }
 
   const { error } = await createAdminSupabaseClient().rpc("apply_admin_attendance_correction", {
@@ -43,7 +42,6 @@ export async function correctAdminAttendance(formData: FormData) {
     p_entry_time: entryTime.data,
     p_exit_time: exitTime.data,
     p_declared_minutes: declaredMinutes,
-    p_reason: reason,
   });
   if (error) return { error: error.message || "No fue posible corregir la asistencia." };
   refresh(consultantId.data);

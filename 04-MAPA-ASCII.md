@@ -324,9 +324,9 @@ Jornada 09/09
                            v
                   diferencia = 09:30
                            |
-                           X
-                           X  NO SE USA
-                           X
+                           +--> jornada actual: NO SE USA
+                           |
+                           `--> jornada histórica: propuesta editable
 
 CONSULTOR declara: 08:00
           |
@@ -346,7 +346,7 @@ Si alguien implementa:
 horas = salida - ingreso
 ```
 
-la implementación viola la Constitución.
+la implementación viola la Constitución si se aplica a jornada actual o reemplaza una edición manual histórica.
 
 ---
 
@@ -436,7 +436,7 @@ Consultant
 [Histórica]      = BLOQUEADA
 ```
 
-Admin puede resolverla con cierre administrativo + motivo + auditoría.
+Admin puede resolverla con cierre administrativo y auditoría.
 
 ---
 
@@ -665,7 +665,6 @@ ADMIN abre jornada
 [Editar]
       |
       +-- dato nuevo
-      +-- motivo obligatorio
       |
       v
 [operación transaccional]
@@ -677,7 +676,6 @@ ADMIN abre jornada
               +-- before
               +-- after
               +-- actor
-              +-- reason
               `-- server timestamp
 ```
 

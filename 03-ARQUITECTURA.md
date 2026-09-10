@@ -62,7 +62,7 @@ Supabase = auth + datos reales
 - registra una jornada por fecha;
 - captura ingreso y salida;
 - captura actividades por área;
-- captura horas declaradas manualmente;
+- captura horas confirmadas; en histórica propone la diferencia ingreso/salida y permite edición manual;
 - solicita geolocalización sin bloquear;
 - muestra historial y acumulado al consultor;
 - muestra actividad actual al admin;
@@ -416,7 +416,7 @@ Append-only.
 | `action` | enum/text | `update`, `admin_close`, etc. |
 | `before_data` | jsonb | snapshot previo relevante |
 | `after_data` | jsonb | snapshot posterior relevante |
-| `reason` | text | obligatorio |
+| `reason` | text nullable | no requerido; se conserva para compatibilidad |
 | `created_at` | timestamptz | server |
 
 No UPDATE ni DELETE aislado desde el producto. La única excepción es eliminar, junto con su jornada y actividades, la auditoría asociada cuando ADMIN confirma la eliminación física.
@@ -486,7 +486,7 @@ declared_minutes = 480
 UI = 08:00
 ```
 
-**Nunca:**
+En jornada actual, **nunca**:
 
 ```text
 declared_minutes = exit_time - entry_time
@@ -500,6 +500,8 @@ Salida:              17:30
 Diferencia reloj:     9:30    # dato derivable, NO usado
 Horas declaradas:     8:00    # 480 min, sí suma
 ```
+
+En jornada histórica, la diferencia ingreso/salida prellena `HH:MM` como propuesta; el consultor puede editarla antes de guardar y el valor confirmado es el que suma.
 
 ---
 
@@ -666,7 +668,7 @@ Actividades *
   - Gerencia / Presentación de avances
 
 Hora salida *       [ 17:15 ]
-Horas realizadas * [ 07:30 ]
+Horas realizadas * [ 09:15 calculadas ] [ Colocar manualmente las horas ]
 
 [ Registrar jornada anterior ]
 ```
@@ -710,7 +712,7 @@ Debes cerrar esta jornada antes de registrar una nueva.
 
 No ofrecer “crear otra”.
 
-El admin puede cerrar la jornada desde detalle administrativo si el consultant lo solicita. Debe ingresar salida, horas declaradas si faltan y motivo de corrección/cierre.
+El admin puede cerrar la jornada desde detalle administrativo si el consultant lo solicita. Debe ingresar salida y horas declaradas si faltan; la operación queda auditada.
 
 ---
 
@@ -857,7 +859,7 @@ Un cliente inactivo no aparece en nuevas jornadas, pero sí en historial.
 
 ### 13.1 Qué puede corregir admin
 
-En una jornada, admin puede corregir cuando exista motivo válido:
+En una jornada, admin puede corregir:
 
 - fecha;
 - cliente;
@@ -877,9 +879,6 @@ Modificar registro
 
 Valor actual:  08:30
 Nuevo valor:   08:00
-
-Motivo de modificación *
-[ El consultor informó un error en su marcación ]
 
 [Cancelar] [Guardar modificación]
 ```

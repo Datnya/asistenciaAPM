@@ -47,7 +47,8 @@ export default async function ConsultantPage() {
     .from("attendance_sessions")
     .select("work_date, work_type, declared_minutes, entry_time, exit_time, status, clients(name)")
     .eq("consultant_user_id", profile.user_id)
-    .eq("status", "closed");
+    .eq("status", "closed")
+    .order("work_date", { ascending: false });
   const totalMinutes = (closedSessions ?? []).reduce((total, session) => total + (session.declared_minutes ?? 0), 0);
   const assignedClient = attendance?.clientName ?? assignedClients[0]?.name ?? null;
 

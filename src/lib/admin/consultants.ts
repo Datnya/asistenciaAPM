@@ -156,7 +156,7 @@ export async function listConsultantAttendanceForExport(
     .eq("status", "closed")
     .gte("work_date", from)
     .lte("work_date", to)
-    .order("work_date");
+    .order("work_date", { ascending: false });
   if (sessionsError) throw new Error("No fue posible cargar las asistencias para el reporte.");
 
   const ids = (sessions ?? []).map((session) => session.id);

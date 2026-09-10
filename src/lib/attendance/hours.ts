@@ -38,3 +38,12 @@ export function formatMinutesAsHHMM(value: number) {
   const minutes = value % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
+
+export function calculateHoursBetween(entryTime: string, exitTime: string) {
+  if (!isBusinessTime(entryTime) || !isBusinessTime(exitTime) || exitTime < entryTime) return "";
+  const entryHours = Number(entryTime.slice(0, 2));
+  const entryMinutes = Number(entryTime.slice(3, 5));
+  const exitHours = Number(exitTime.slice(0, 2));
+  const exitMinutes = Number(exitTime.slice(3, 5));
+  return formatMinutesAsHHMM((exitHours * 60 + exitMinutes) - (entryHours * 60 + entryMinutes));
+}

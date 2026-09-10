@@ -27,8 +27,8 @@ El producto prioriza tres cosas:
 4. **Una jornada pertenece a un solo consultor, una sola fecha y un solo cliente.** Un consultor puede estar asignado a varios clientes, pero no registrar dos clientes dentro de la misma jornada.
 5. **No se permiten fechas futuras.** Sí se permiten fechas pasadas mediante el flujo histórico.
 6. **No hay cronómetro.** La plataforma nunca muestra “llevas X horas” calculadas a partir de ingreso y salida.
-7. **Ingreso y salida son evidencia de asistencia, no la fuente del total de horas.** Se muestran, almacenan y reportan, pero NO determinan las horas computables.
-8. **Las horas computables son declaradas manualmente por el consultor** en formato `HH:MM`. El sistema las convierte a minutos solo para sumar y reportar.
+7. **Ingreso y salida son evidencia de asistencia.** En una jornada histórica, su diferencia propone por defecto las horas computables; el consultor puede reemplazarla manualmente antes de confirmar.
+8. **Las horas computables se guardan en `HH:MM` como valor confirmado por el consultor.** En jornada actual se declaran manualmente; en histórica puede aceptarse o sustituirse la propuesta automática.
 9. **El almuerzo u otras pausas nunca se descuentan automáticamente.** El consultor declara el tiempo que debe ser considerado según el servicio realizado.
 10. **Una jornada cerrada es inmutable para el consultor.** Después de confirmar salida, todo queda en solo lectura.
 11. **No existe salida válida sin actividades.** Debe haber al menos una actividad con área y descripción antes de cerrar la jornada.
@@ -65,9 +65,9 @@ El producto prioriza tres cosas:
 ### 2.4 Horas declaradas
 
 34. **La única cifra que suma al acumulado es `declared_minutes`.** Ningún otro campo puede reemplazarla implícitamente.
-35. **`declared_minutes` nace del valor manual `HH:MM` ingresado por el consultor.** Ejemplo: `08:30` → 510 minutos.
-36. **Ingreso `08:00` y salida `17:30` NO implican 9h30.** Si el consultor declara `08:00`, el sistema acumula 8h.
-37. **El sistema puede validar formato y rango, nunca “corregir” las horas usando los timestamps.**
+35. **`declared_minutes` nace del valor `HH:MM` confirmado por el consultor.** En jornada histórica se propone la diferencia entre ingreso y salida; puede reemplazarse manualmente. Ejemplo: `08:30` → 510 minutos.
+36. **En jornada actual, ingreso `08:00` y salida `17:30` NO implican 9h30.** El consultor declara el total. En una jornada histórica, ese intervalo sí genera la propuesta inicial editable.
+37. **El sistema valida formato y rango.** La propuesta automática se limita al formulario histórico y nunca inicia un cronómetro ni reemplaza una edición manual.
 38. **Los reportes, tarjetas y resúmenes usan siempre horas declaradas.** Si una interfaz muestra otra métrica, debe nombrarla explícitamente y no mezclarla con “horas trabajadas”.
 
 ### 2.5 Actividades y áreas
@@ -105,8 +105,8 @@ Otro
 
 49. **Supabase PostgreSQL es la única fuente de verdad operativa.** GitHub contiene código y migraciones, nunca datos reales de asistencia.
 50. **Los timestamps técnicos del servidor son distintos de los horarios de negocio introducidos por el usuario.** Ambos se conservan.
-51. **Toda corrección administrativa de una jornada cerrada requiere motivo.**
-52. **Toda corrección administrativa genera auditoría** con actor, fecha técnica, valor anterior, valor nuevo y motivo.
+51. **Una corrección administrativa de una jornada cerrada no requiere motivo manual.**
+52. **Toda corrección administrativa genera auditoría** con actor, fecha técnica, valor anterior y valor nuevo.
 53. **La auditoría es append-only para jornadas existentes.** No se edita ni elimina de forma aislada desde la aplicación; se elimina únicamente como parte de la eliminación física confirmada de su jornada por ADMIN.
 54. **Solo un ADMIN puede eliminar físicamente una jornada desde la UI**, tras una confirmación explícita. La eliminación retira también sus actividades y cualquier auditoría asociada.
 55. **Eliminar una jornada es irreversible** y no puede realizarse desde una cuenta CONSULTANT.
@@ -152,7 +152,7 @@ Estas reglas deben tener defensa en UI **y** en servidor/BD cuando corresponda.
 | Horas declaradas >0 y ≤24h | CHECK + schema Zod |
 | Total = suma de `declared_minutes` | query única; nunca timestamps |
 | Usuario inactivo sin acceso | middleware/server + RLS |
-| Admin correction requiere motivo | función/endpoint transaccional |
+| Admin correction auditada | función/endpoint transaccional |
 | Audit log append-only | permisos DB |
 | Cliente de jornada debe estar asignado al consultor | validación server/DB |
 
@@ -163,7 +163,7 @@ Si una regla solo existe como texto en este documento y no existe un mecanismo t
 ## 4. Decisiones que no se reabren sin owner
 
 1. No introducir cronómetro ni contador de jornada.
-2. No calcular horas trabajadas restando ingreso y salida.
+2. No calcular horas trabajadas restando ingreso y salida en jornada actual; en histórica se permite solo como propuesta inicial editable.
 3. No usar GitHub como base de datos.
 4. No crear rol “gerencia” en el MVP.
 5. No permitir dos clientes en una misma jornada.

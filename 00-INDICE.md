@@ -54,8 +54,8 @@ Esta sección resume las decisiones ya cerradas. Si otro documento parece contra
 | Fechas pasadas | Permitidas mediante flujo histórico |
 | Fechas futuras | Prohibidas |
 | Hora ingreso/salida | Se registra y queda bloqueada para el consultor tras confirmar |
-| Cálculo de horas | **NO** se calcula por ingreso/salida |
-| Horas computables | Las declara manualmente el consultor en formato `HH:MM` |
+| Cálculo de horas | En jornada histórica se propone por defecto la diferencia ingreso/salida; no hay cronómetro |
+| Horas computables | El consultor confirma el valor propuesto o lo declara manualmente en `HH:MM` |
 | Acumulados | Suma de horas declaradas, convertidas internamente a minutos |
 | Cronómetro | Prohibido |
 | Actividades | Una o más por jornada; `área + descripción` |
@@ -63,7 +63,7 @@ Esta sección resume las decisiones ya cerradas. Si otro documento parece contra
 | Área `Otro` | Habilita nombre de área específico obligatorio |
 | Edición consultor | Solo actividades mientras la jornada está abierta |
 | Jornada cerrada | Solo lectura para consultor |
-| Correcciones | Solo admin, siempre con motivo y auditoría |
+| Correcciones | Solo admin, siempre con auditoría; no requiere motivo manual |
 | Salida sin actividades | Prohibida |
 | Jornada anterior abierta | Bloquea iniciar otra |
 | Geolocalización | Se solicita; si falla/rechaza, el registro continúa y queda incidencia |

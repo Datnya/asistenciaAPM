@@ -138,7 +138,7 @@ No construir todo en una sola instrucción a Codex.
 
 ### Fase 7 — Correcciones y auditoría
 
-- Corrección con motivo.
+- Corrección auditada sin motivo manual obligatorio.
 - Auditoría append-only para jornadas existentes; se elimina solo junto con una eliminación física de jornada confirmada por ADMIN.
 - Eliminación irreversible de asistencia solo por ADMIN, con confirmación explícita.
 
@@ -315,7 +315,7 @@ No implementar silenciosamente ninguno de estos cambios:
 
 - crear un tercer rol;
 - permitir dos clientes por jornada;
-- calcular horas automáticamente;
+- calcular horas automáticamente fuera de la propuesta editable del formulario histórico;
 - introducir cronómetro;
 - bloquear registro por geolocalización;
 - permitir al consultor editar jornada cerrada;
@@ -358,7 +358,7 @@ propuesta
 - RLS ausente;
 - contraseñas en tablas propias;
 - secret key expuesta;
-- totals calculados desde ingreso/salida;
+- totals de jornada actual calculados desde ingreso/salida;
 - jornadas duplicadas por race condition;
 - correcciones sin auditoría;
 - usuario inactivo con acceso;
@@ -471,7 +471,7 @@ Probar en navegador móvil real:
 - crear consultant;
 - asignar clientes;
 - ver jornada activa;
-- corregir registro con motivo;
+- corregir registro y verificar auditoría;
 - eliminar asistencia con confirmación;
 - filtrar;
 - descargar Excel.

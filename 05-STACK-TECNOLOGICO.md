@@ -121,7 +121,7 @@ No hay email recovery en MVP.
 
 ### Decisión 5 — Horas declaradas vs horas calculadas
 
-**Elegido:** horas declaradas manualmente.
+**Elegido:** horas confirmadas en `HH:MM`: manuales en jornada actual y prellenadas por diferencia ingreso/salida, pero editables, en jornada histórica.
 
 ```text
 UI: HH:MM
@@ -845,7 +845,7 @@ Los detalles finales dependen del scaffold de Next.js vigente.
 | Un cliente por jornada | `client_id` en session |
 | Fecha futura | no permitida |
 | Overnight | no soportado |
-| Horas | manual `HH:MM`, 1..1440 min |
+| Horas | `HH:MM` confirmado, 1..1440 min; propuesta automática editable solo en jornada histórica |
 | Actividad | descripción 1..250 |
 | GPS | best-effort, no bloqueante |
 | Excel | admin-only |
