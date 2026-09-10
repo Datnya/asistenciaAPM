@@ -22,6 +22,7 @@ export type ConsultantRecord = {
 
 export type ConsultantAttendanceRecord = {
   id: string;
+  clientId: string;
   workDate: string;
   workType: "remote" | "onsite" | null;
   clientName: string;
@@ -29,6 +30,10 @@ export type ConsultantAttendanceRecord = {
   exitTime: string | null;
   declaredMinutes: number | null;
   status: string;
+};
+
+export type ConsultantAttendanceExportRecord = ConsultantAttendanceRecord & {
+  activitySummary: string;
 };
 
 function mapConsultant(
@@ -121,13 +126,13 @@ export async function listActiveClientNames(): Promise<string[]> {
 export async function listConsultantAttendance(userId: string): Promise<ConsultantAttendanceRecord[]> {
   const { data, error } = await createAdminSupabaseClient()
     .from("attendance_sessions")
-    .select("id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
+    .select("id, client_id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
     .eq("consultant_user_id", userId)
-    .neq("status", "voided")
     .order("work_date", { ascending: false });
   if (error) throw new Error("No fue posible cargar las asistencias del consultor.");
   return (data ?? []).map((session) => ({
     id: session.id,
+    clientId: session.client_id,
     workDate: session.work_date,
     workType: session.work_type as "remote" | "onsite" | null,
     clientName: (session.clients as unknown as { name: string } | null)?.name ?? "-",
@@ -135,5 +140,51 @@ export async function listConsultantAttendance(userId: string): Promise<Consulta
     exitTime: session.exit_time,
     declaredMinutes: session.declared_minutes,
     status: session.status,
+  }));
+}
+
+export async function listConsultantAttendanceForExport(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<ConsultantAttendanceExportRecord[]> {
+  const admin = createAdminSupabaseClient();
+  const { data: sessions, error: sessionsError } = await admin
+    .from("attendance_sessions")
+    .select("id, client_id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
+    .eq("consultant_user_id", userId)
+    .eq("status", "closed")
+    .gte("work_date", from)
+    .lte("work_date", to)
+    .order("work_date");
+  if (sessionsError) throw new Error("No fue posible cargar las asistencias para el reporte.");
+
+  const ids = (sessions ?? []).map((session) => session.id);
+  const activityBySession = new Map<string, string[]>();
+  if (ids.length) {
+    const { data: activities, error: activitiesError } = await admin
+      .from("attendance_activities")
+      .select("session_id, area_code, other_area_name")
+      .in("session_id", ids);
+    if (activitiesError) throw new Error("No fue posible cargar las actividades para el reporte.");
+    for (const activity of activities ?? []) {
+      const label = activity.area_code === "other" && activity.other_area_name
+        ? activity.other_area_name
+        : activity.area_code;
+      activityBySession.set(activity.session_id, [...(activityBySession.get(activity.session_id) ?? []), label]);
+    }
+  }
+
+  return (sessions ?? []).map((session) => ({
+    id: session.id,
+    clientId: session.client_id,
+    workDate: session.work_date,
+    workType: session.work_type as "remote" | "onsite" | null,
+    clientName: (session.clients as unknown as { name: string } | null)?.name ?? "-",
+    entryTime: session.entry_time,
+    exitTime: session.exit_time,
+    declaredMinutes: session.declared_minutes,
+    status: session.status,
+    activitySummary: (activityBySession.get(session.id) ?? []).join(", "),
   }));
 }

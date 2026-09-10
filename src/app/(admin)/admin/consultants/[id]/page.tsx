@@ -1,10 +1,12 @@
-import { ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Info } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock3, Info } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DashboardMetric } from "@/components/consultant/dashboard-metric";
 import { ProfileAvatar } from "@/components/shared/profile-avatar";
 import { EditConsultantDialog } from "@/components/admin/edit-consultant-dialog";
+import { AttendanceAdminActions } from "@/components/admin/attendance-actions";
+import { ExcelExportDialog } from "@/components/admin/excel-export-dialog";
 import { getConsultant, listActiveClientNames, listConsultantAttendance } from "@/lib/admin/consultants";
 import { requireRole } from "@/lib/auth/guards";
 import { formatDeclaredMinutes } from "@/lib/attendance/hours";
@@ -20,7 +22,6 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
   const attendance = await listConsultantAttendance(consultant.userId);
   const totalMinutes = attendance.filter((session) => session.status === "closed").reduce((total, session) => total + (session.declaredMinutes ?? 0), 0);
 
-  const exportUrl = `/api/admin/consultants/${consultant.userId}/attendance-export`;
   const clientLabel = consultant.clients.length
     ? consultant.clients.map((client) => client.name).join(", ")
     : "Sin cliente asignado";
@@ -46,7 +47,7 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-3"><EditConsultantDialog clientNames={clientNames} consultant={consultant} /><ExcelDownloadLink href={exportUrl} /></div>
+          <div className="flex flex-col gap-3"><EditConsultantDialog clientNames={clientNames} consultant={consultant} /><ExcelExportDialog consultantId={consultant.userId} /></div>
         </div>
 
         <div className="mt-7 grid gap-5 md:grid-cols-2">
@@ -57,9 +58,9 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
           <h2 className="text-[24px] font-bold tracking-[-0.03em]">Resumen de asistencias</h2>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm text-[#344056]">
-              <thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-4">Fecha</th><th className="px-4 py-4">Cliente</th><th className="px-4 py-4">Tipo de jornada</th><th className="px-4 py-4">Ingreso</th><th className="px-4 py-4">Salida</th><th className="px-4 py-4">Horas declaradas</th><th className="rounded-r-lg px-4 py-4">Estado</th></tr></thead>
-              <tbody>{attendance.length ? attendance.map((session) => <tr className="border-b border-[#edf0f3]" key={session.id}><td className="px-4 py-3">{formatLimaDate(session.workDate)}</td><td className="px-4 py-3">{session.clientName}</td><td className="px-4 py-3">{session.workType === "remote" ? "Remota" : session.workType === "onsite" ? "Presencial" : "No especificado"}</td><td className="px-4 py-3">{session.entryTime.slice(0, 5)}</td><td className="px-4 py-3">{session.exitTime?.slice(0, 5) ?? "-"}</td><td className="px-4 py-3">{session.declaredMinutes ? formatDeclaredMinutes(session.declaredMinutes) : "-"}</td><td className="px-4 py-3">{session.status === "closed" ? "Completada" : "Pendiente"}</td></tr>) : <tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={7}>Este consultor todavía no tiene asistencias registradas.</td></tr>}</tbody>
+            <table className="w-full min-w-[880px] text-left text-sm text-[#344056]">
+              <thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-4">Fecha</th><th className="px-4 py-4">Cliente</th><th className="px-4 py-4">Tipo de jornada</th><th className="px-4 py-4">Ingreso</th><th className="px-4 py-4">Salida</th><th className="px-4 py-4">Horas declaradas</th><th className="px-4 py-4">Estado</th><th className="rounded-r-lg px-4 py-4 text-right">Acciones</th></tr></thead>
+              <tbody>{attendance.length ? attendance.map((session) => <tr className="border-b border-[#edf0f3]" key={session.id}><td className="px-4 py-3">{formatLimaDate(session.workDate)}</td><td className="px-4 py-3">{session.clientName}</td><td className="px-4 py-3">{session.workType === "remote" ? "Remota" : session.workType === "onsite" ? "Presencial" : "No especificado"}</td><td className="px-4 py-3">{session.entryTime.slice(0, 5)}</td><td className="px-4 py-3">{session.exitTime?.slice(0, 5) ?? "-"}</td><td className="px-4 py-3">{session.declaredMinutes ? formatDeclaredMinutes(session.declaredMinutes) : "-"}</td><td className="px-4 py-3">{session.status === "closed" ? "Completada" : "Pendiente"}</td><td className="px-4 py-3"><AttendanceAdminActions attendance={session} clients={consultant.clients.map((client) => ({ id: client.id, name: client.name }))} consultantId={consultant.userId} /></td></tr>) : <tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={8}>Este consultor todavía no tiene asistencias registradas.</td></tr>}</tbody>
             </table>
           </div>
         </section>
@@ -69,20 +70,9 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
             <Info aria-hidden="true" className="mt-1 size-8 shrink-0 text-[#48566f]" />
             <div><h2 className="font-bold text-[#344056]">Consulta el historial completo</h2><p className="mt-1 text-sm text-[#697186]">Puedes descargar el historial del consultor en formato Excel. Si aún no tiene registros, recibirás un reporte vacío informativo.</p></div>
           </div>
-          <ExcelDownloadLink compact href={exportUrl} />
+          <ExcelExportDialog compact consultantId={consultant.userId} />
         </section>
       </section>
     </main>
-  );
-}
-
-function ExcelDownloadLink({ href, compact = false }: { href: string; compact?: boolean }) {
-  return (
-    <Link
-      className={`flex min-h-[68px] items-center justify-center gap-4 rounded-[14px] bg-[linear-gradient(135deg,#9dbb00_0%,#b3ca00_55%,#91ad00_100%)] px-7 font-semibold text-white shadow-[0_12px_28px_rgba(154,177,0,0.18)] ${compact ? "min-h-14 text-base" : "text-lg xl:min-w-[420px]"}`}
-      href={href}
-    >
-      <FileSpreadsheet aria-hidden="true" className="size-8" /> Descargar asistencias en Excel
-    </Link>
   );
 }

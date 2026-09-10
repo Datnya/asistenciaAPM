@@ -453,20 +453,20 @@ Admin puede resolverla con cierre administrativo + motivo + auditoría.
           |  CLOSED  |
           +-----+----+
                 |
-                | admin void
+                | admin elimina (confirmación)
                 v
-          +----------+
-          |  VOIDED  |
-          +----------+
+          +--------------------------+
+          | eliminada físicamente DB |
+          +--------------------------+
 ```
 
-Posible admin void desde `OPEN` también, siempre auditado.
+ADMIN puede eliminar desde `OPEN` o `CLOSED` tras confirmación explícita. La operación elimina la jornada, sus actividades y su auditoría asociada.
 
 No hay transición:
 
 ```text
 CLOSED -> OPEN por consultant
-VOIDED -> CLOSED
+eliminada físicamente -> CLOSED
 ```
 
 Si se necesita una corrección, admin modifica de forma auditada; no “reabre” para que consultant edite.
@@ -540,7 +540,7 @@ attendance_sessions
 
 ```text
 UNIQUE consultant + work_date
-WHERE status != voided
+Mientras exista el registro
 
 UNIQUE consultant
 WHERE status = open

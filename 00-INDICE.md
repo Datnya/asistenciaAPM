@@ -48,7 +48,7 @@ Esta sección resume las decisiones ya cerradas. Si otro documento parece contra
 | Contraseña visible | Nunca. Ni consultor ni admin pueden leer la contraseña actual |
 | Clientes | Un consultor puede estar asignado a varios clientes |
 | Cliente por jornada | Exactamente uno |
-| Jornadas por día | Máximo una jornada no anulada por consultor y fecha |
+| Jornadas por día | Máximo una jornada por consultor y fecha mientras exista el registro |
 | Jornadas abiertas | Máximo una abierta por consultor |
 | Días permitidos | Cualquier día, incluidos sábados, domingos y feriados |
 | Fechas pasadas | Permitidas mediante flujo histórico |
@@ -85,7 +85,7 @@ Esta sección resume las decisiones ya cerradas. Si otro documento parece contra
 | Perfil/estado activo | PostgreSQL `profiles` en Supabase |
 | Clientes y asignaciones | PostgreSQL en Supabase |
 | Jornadas y actividades | PostgreSQL en Supabase |
-| Auditoría | PostgreSQL en Supabase, append-only |
+| Auditoría | PostgreSQL en Supabase, append-only mientras la jornada exista; se retira con una eliminación física ADMIN confirmada |
 | Archivos Excel | Se generan bajo demanda; no son fuente de verdad |
 | Hosting | Vercel |
 | Branding | Tokens definidos en `05-STACK-TECNOLOGICO.md` |
@@ -144,7 +144,7 @@ El orden de construcción recomendado es deliberado:
 [Fase 6] dashboard + gestión admin + realtime
     |
     v
-[Fase 7] correcciones + auditoría + anulaciones
+[Fase 7] correcciones + auditoría + eliminación administrativa confirmada
     |
     v
 [Fase 8] reportes Excel

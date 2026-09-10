@@ -139,8 +139,8 @@ No construir todo en una sola instrucción a Codex.
 ### Fase 7 — Correcciones y auditoría
 
 - Corrección con motivo.
-- Auditoría append-only.
-- Anulación sin hard-delete.
+- Auditoría append-only para jornadas existentes; se elimina solo junto con una eliminación física de jornada confirmada por ADMIN.
+- Eliminación irreversible de asistencia solo por ADMIN, con confirmación explícita.
 
 ### Fase 8 — Excel
 
@@ -267,7 +267,7 @@ Antes de un backfill/update masivo:
 3. respaldar si el cambio no es trivialmente reversible;
 4. aplicar con condición acotada;
 5. volver a contar/verificar;
-6. no tocar auditoría histórica.
+6. no tocar auditoría histórica salvo al eliminar físicamente su jornada mediante la confirmación ADMIN.
 
 ---
 
@@ -290,7 +290,7 @@ report totals
 se deben verificar como mínimo estas invariantes:
 
 ```text
-[ ] No existe más de 1 jornada no anulada por consultant/date
+[ ] No existe más de 1 jornada por consultant/date mientras exista el registro
 [ ] No existe más de 1 jornada open por consultant
 [ ] No existen fechas futuras
 [ ] closed no puede ser modificado por consultant
@@ -326,7 +326,7 @@ No implementar silenciosamente ninguno de estos cambios:
 - añadir notificaciones push/email;
 - cambiar Supabase/Vercel/GitHub como pilares;
 - cambiar `main` como producción;
-- eliminar auditoría o permitir hard-delete;
+- permitir hard-delete fuera del flujo ADMIN explícitamente confirmado;
 - cambiar catálogo de áreas de forma incompatible;
 - añadir documentos canónicos nuevos.
 
@@ -472,7 +472,7 @@ Probar en navegador móvil real:
 - asignar clientes;
 - ver jornada activa;
 - corregir registro con motivo;
-- anular;
+- eliminar asistencia con confirmación;
 - filtrar;
 - descargar Excel.
 

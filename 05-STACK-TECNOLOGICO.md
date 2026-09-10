@@ -461,7 +461,8 @@ FileDown    reportes
 MapPin      ubicación
 LogOut      cerrar sesión
 Pencil      editar
-Ban         desactivar/anular según contexto
+Ban         desactivar según contexto
+Trash2      eliminar asistencia (solo ADMIN, con confirmación)
 ```
 
 No mezclar librerías de iconos.
@@ -668,7 +669,7 @@ inactive denied
 consultant no update closed
 close requires activity
 admin audit atomic
-void excluded totals
+deleted attendance excluded totals
 assigned client enforcement
 ```
 

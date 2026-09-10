@@ -66,7 +66,7 @@ Supabase = auth + datos reales
 - solicita geolocalización sin bloquear;
 - muestra historial y acumulado al consultor;
 - muestra actividad actual al admin;
-- corrige/anula con auditoría;
+- corrige con auditoría y elimina asistencias únicamente desde ADMIN;
 - exporta Excel filtrado o global.
 
 ### 2.2 Lo que NO hace en el MVP
@@ -347,7 +347,7 @@ Tabla principal de jornadas.
 | `client_id` | uuid FK | 1 cliente |
 | `work_date` | date | ≤ fecha actual Lima |
 | `record_mode` | enum | `live` / `historical` |
-| `status` | enum | `open` / `closed` / `voided` |
+| `status` | enum | `open` / `closed`; `voided` queda solo como compatibilidad de datos heredados y no se genera en el flujo actual |
 | `entry_time` | time | horario de negocio |
 | `entry_recorded_at` | timestamptz | cuándo servidor recibió/confirmó ingreso live |
 | `entry_latitude` | numeric nullable | solo live si granted |
@@ -366,7 +366,7 @@ Tabla principal de jornadas.
 | `submission_accuracy_m` | numeric nullable | histórica |
 | `submission_location_status` | enum nullable | histórica |
 | `closed_at` | timestamptz nullable | server |
-| `voided_at` | timestamptz nullable | admin |
+| `voided_at` | timestamptz nullable | campo heredado; no se usa en nuevas operaciones |
 | `created_at` | timestamptz | server |
 | `updated_at` | timestamptz | server |
 
@@ -375,7 +375,7 @@ Tabla principal de jornadas.
 ```text
 UNIQUE parcial:
 (consultant_user_id, work_date)
-WHERE status <> 'voided'
+WHERE status <> 'voided' (compatibilidad con registros heredados; los nuevos registros se eliminan físicamente)
 
 UNIQUE parcial:
 (consultant_user_id)
@@ -385,7 +385,7 @@ TRIGGER/validación server: work_date no puede ser futura en America/Lima
 CHECK declared_minutes IS NULL OR 1..1440
 CHECK closed => exit_time NOT NULL
 CHECK closed => declared_minutes NOT NULL
-CHECK voided => voided_at NOT NULL
+No se permiten nuevas anulaciones: un ADMIN elimina físicamente tras confirmar.
 ```
 
 La validación de “cliente asignado” puede necesitar trigger/RPC/server validation porque cruza tablas. Debe existir en servidor aunque la UI filtre el dropdown.
@@ -413,13 +413,13 @@ Append-only.
 | `id` | uuid PK | generado |
 | `attendance_session_id` | uuid FK | jornada afectada |
 | `actor_user_id` | uuid FK | admin que cambió |
-| `action` | enum/text | `update`, `admin_close`, `void`, etc. |
+| `action` | enum/text | `update`, `admin_close`, etc. |
 | `before_data` | jsonb | snapshot previo relevante |
 | `after_data` | jsonb | snapshot posterior relevante |
 | `reason` | text | obligatorio |
 | `created_at` | timestamptz | server |
 
-No UPDATE ni DELETE desde el producto.
+No UPDATE ni DELETE aislado desde el producto. La única excepción es eliminar, junto con su jornada y actividades, la auditoría asociada cuando ADMIN confirma la eliminación física.
 
 ---
 
@@ -688,7 +688,7 @@ submission_location_* = ubicación actual si disponible
 
 **Nunca copiar `created_at` hacia la fecha histórica.**
 
-Si ya existe una jornada no anulada para esa fecha, bloquear.
+Si ya existe una jornada para esa fecha, bloquear.
 
 Si existe cualquier jornada `open` del consultor, primero debe cerrarse/resolverse.
 
@@ -726,7 +726,7 @@ Jornadas registradas
 10
 ```
 
-`Horas acumuladas` = `SUM(declared_minutes)` de jornadas `closed`, excluyendo `voided`.
+`Horas acumuladas` = `SUM(declared_minutes)` de jornadas `closed` existentes.
 
 ### 11.2 Tabla/listado
 
@@ -866,7 +866,7 @@ En una jornada, admin puede corregir cuando exista motivo válido:
 - horas declaradas;
 - actividades;
 - cierre pendiente;
-- anulación.
+- eliminación física con confirmación explícita.
 
 Debe respetar invariantes: no crear duplicados, no fecha futura, cliente válido, etc.
 
@@ -899,20 +899,17 @@ Implementar una operación server-side/DB transaccional que:
 
 Puede ser una RPC PostgreSQL segura o una ruta server-side que invoque una función SQL transaccional. Preferir que la atomicidad viva en DB.
 
-### 13.4 Anulación
+### 13.4 Eliminación de asistencia
 
-`void` ≠ delete.
-
-Al anular:
+Solo ADMIN puede eliminar una asistencia. Antes de eliminar:
 
 ```text
-status = voided
-voided_at = server now
-reason obligatorio
-audit log obligatorio
+mostrar confirmación explícita
+explicar que la eliminación es irreversible
+eliminar actividades y auditoría asociada junto con la jornada
 ```
 
-Una jornada anulada no suma días ni horas en reportes.
+Una jornada eliminada deja de existir en días, horas, historial y reportes.
 
 ---
 
@@ -1208,7 +1205,7 @@ attendance_started
 attendance_closed
 attendance_historical_created
 attendance_admin_corrected
-attendance_voided
+attendance_deleted
 report_exported
 ```
 
@@ -1227,7 +1224,7 @@ Diseños que sí deben ser correctos desde el inicio:
 - RLS;
 - queries paginadas en históricos/admin;
 - Excel generado en servidor;
-- audit append-only.
+- audit append-only salvo eliminación física confirmada de su jornada por ADMIN.
 
 No introducir Redis, colas, microservicios ni workers sin evidencia de necesidad.
 
@@ -1255,7 +1252,7 @@ APM Control está funcionalmente listo cuando:
 [ ] admin ve jornadas activas
 [ ] admin filtra historial
 [ ] admin corrige con audit
-[ ] admin anula sin borrar
+[ ] admin elimina asistencia con confirmación explícita
 [ ] Excel individual funciona
 [ ] Excel global funciona
 [ ] branding APM aplicado

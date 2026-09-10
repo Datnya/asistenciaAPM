@@ -50,7 +50,7 @@ El producto prioriza tres cosas:
 
 ### 2.3 Jornadas
 
-23. **Máximo una jornada no anulada por consultor y fecha.** No se permiten duplicados del mismo día.
+23. **Máximo una jornada por consultor y fecha.** No se permiten duplicados del mismo día mientras el registro exista.
 24. **Máximo una jornada abierta por consultor.** Una jornada pendiente bloquea iniciar otra, aunque sea de otra fecha.
 25. **La jornada actual es secuencial:** confirmar ingreso → registrar/editar actividades → confirmar salida.
 26. **La hora de ingreso queda bloqueada para el consultor desde su confirmación.** Solo un admin puede corregirla después.
@@ -107,9 +107,9 @@ Otro
 50. **Los timestamps técnicos del servidor son distintos de los horarios de negocio introducidos por el usuario.** Ambos se conservan.
 51. **Toda corrección administrativa de una jornada cerrada requiere motivo.**
 52. **Toda corrección administrativa genera auditoría** con actor, fecha técnica, valor anterior, valor nuevo y motivo.
-53. **La auditoría es append-only.** No se edita ni elimina desde la aplicación.
-54. **Una jornada no se borra físicamente desde la UI.** Si debe invalidarse, se marca `voided`/anulada y conserva trazabilidad.
-55. **Anular un registro no borra sus actividades ni auditoría histórica.**
+53. **La auditoría es append-only para jornadas existentes.** No se edita ni elimina de forma aislada desde la aplicación; se elimina únicamente como parte de la eliminación física confirmada de su jornada por ADMIN.
+54. **Solo un ADMIN puede eliminar físicamente una jornada desde la UI**, tras una confirmación explícita. La eliminación retira también sus actividades y cualquier auditoría asociada.
+55. **Eliminar una jornada es irreversible** y no puede realizarse desde una cuenta CONSULTANT.
 56. **Los clientes se desactivan, no se borran si tienen historia asociada.**
 57. **Los usuarios se desactivan, no se borran si tienen historia asociada.**
 
@@ -130,7 +130,7 @@ Otro
 67. **Logo APM visible en superficies principales** y embebido en reportes Excel cuando exista el asset oficial.
 68. **Iconos profesionales y consistentes.** Usar Lucide; no emojis como iconografía funcional del producto.
 69. **El consultor no recibe un dashboard saturado.** Una acción primaria por estado y contenido secundario reducido.
-70. **Confirmaciones críticas usan modal/alerta clara.** Cerrar jornada, anular y correcciones administrativas no ocurren por clic accidental.
+70. **Confirmaciones críticas usan modal/alerta clara.** Cerrar jornada, eliminar una asistencia y correcciones administrativas no ocurren por clic accidental.
 71. **Touch targets mínimos de 44 px** en móvil para acciones principales.
 
 ---
@@ -141,7 +141,7 @@ Estas reglas deben tener defensa en UI **y** en servidor/BD cuando corresponda.
 
 | Invariante | Defensa mínima |
 |------------|----------------|
-| 1 jornada no anulada por consultor/fecha | índice único parcial en DB |
+| 1 jornada por consultor/fecha | índice único parcial en DB |
 | 1 jornada abierta por consultor | índice único parcial en DB |
 | Sin fecha futura | CHECK/validación server-side |
 | Jornada cerrada no editable por consultor | RLS + validación server-side |
@@ -170,7 +170,7 @@ Si una regla solo existe como texto en este documento y no existe un mecanismo t
 6. No permitir autoservicio de contraseña al consultor.
 7. No mostrar contraseñas actuales al admin.
 8. No exigir geolocalización para poder registrar asistencia.
-9. No borrar usuarios, clientes, jornadas ni auditoría con hard-delete desde la UI.
+9. No borrar usuarios ni clientes con hard-delete desde la UI; la asistencia puede ser eliminada únicamente por ADMIN con confirmación explícita.
 10. No permitir al consultor modificar una jornada cerrada.
 11. No permitir salida sin actividades.
 12. No dividir el producto en app móvil nativa + web. Es una sola web responsive.
