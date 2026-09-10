@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { declaredHoursToMinutes } from "@/lib/attendance/hours";
 import { getLimaWorkDate } from "@/lib/attendance/lima";
-import { attendanceActivitySchema, closeAttendanceSchema, startAttendanceSchema } from "@/lib/attendance/validation";
+import { attendanceActivitySchema, closeAttendanceSchema, historicalAttendanceSchema, startAttendanceSchema } from "@/lib/attendance/validation";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -40,8 +40,16 @@ function refreshAttendance() {
 
 export async function startLiveAttendance(formData: FormData): Promise<Result> {
   const { profile } = await requireRole("consultant");
-  const parsed = startAttendanceSchema.safeParse({ clientId: formData.get("clientId"), entryTime: formData.get("entryTime") });
+  const parsed = startAttendanceSchema.safeParse({
+    clientId: formData.get("clientId"),
+    workDate: formData.get("workDate"),
+    workType: formData.get("workType"),
+    entryTime: formData.get("entryTime"),
+  });
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Revisa los datos de ingreso." };
+  if (parsed.data.workDate !== getLimaWorkDate()) {
+    return { success: false, error: "Para una fecha pasada utiliza el registro histórico; para hoy confirma el ingreso en la fecha actual." };
+  }
 
   const admin = createAdminSupabaseClient();
   const { data: existing } = await admin
@@ -65,7 +73,8 @@ export async function startLiveAttendance(formData: FormData): Promise<Result> {
   const { error } = await admin.from("attendance_sessions").insert({
     consultant_user_id: profile.user_id,
     client_id: parsed.data.clientId,
-    work_date: getLimaWorkDate(),
+    work_date: parsed.data.workDate,
+    work_type: parsed.data.workType,
     record_mode: "live",
     status: "open",
     entry_time: parsed.data.entryTime,
@@ -78,6 +87,61 @@ export async function startLiveAttendance(formData: FormData): Promise<Result> {
   if (error) {
     if (error.code === "23505") return { success: false, error: "Ya existe una jornada para esta fecha o una jornada pendiente de cierre." };
     return { success: false, error: "No fue posible registrar el ingreso. Inténtalo nuevamente." };
+  }
+
+  refreshAttendance();
+  return { success: true };
+}
+
+export async function createHistoricalAttendance(formData: FormData): Promise<Result> {
+  const { profile } = await requireRole("consultant");
+  const parsed = historicalAttendanceSchema.safeParse({
+    clientId: formData.get("clientId"),
+    workDate: formData.get("workDate"),
+    workType: formData.get("workType"),
+    entryTime: formData.get("entryTime"),
+    exitTime: formData.get("exitTime"),
+    declaredHours: formData.get("declaredHours"),
+    areaCode: formData.get("areaCode"),
+    otherAreaName: formData.get("otherAreaName") || undefined,
+    description: formData.get("description"),
+  });
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Revisa los datos de la jornada histórica." };
+  if (parsed.data.workDate >= getLimaWorkDate()) {
+    return { success: false, error: "El registro histórico solo permite fechas anteriores a hoy." };
+  }
+
+  const admin = createAdminSupabaseClient();
+  const { data: existing } = await admin
+    .from("attendance_sessions")
+    .select("id")
+    .eq("consultant_user_id", profile.user_id)
+    .eq("status", "open")
+    .maybeSingle();
+  if (existing) return { success: false, error: "Tienes una jornada pendiente de cierre. Finalízala antes de registrar una fecha anterior." };
+
+  const location = locationFrom(formData);
+  const { error } = await admin.rpc("create_historical_attendance", {
+    p_consultant_user_id: profile.user_id,
+    p_client_id: parsed.data.clientId,
+    p_work_date: parsed.data.workDate,
+    p_work_type: parsed.data.workType,
+    p_entry_time: parsed.data.entryTime,
+    p_exit_time: parsed.data.exitTime,
+    p_declared_minutes: declaredHoursToMinutes(parsed.data.declaredHours),
+    p_activities: [{
+      areaCode: parsed.data.areaCode,
+      otherAreaName: parsed.data.areaCode === "other" ? parsed.data.otherAreaName ?? null : null,
+      description: parsed.data.description,
+    }],
+    p_submission_location_status: location.status,
+    p_submission_latitude: location.status === "granted" ? location.latitude : null,
+    p_submission_longitude: location.status === "granted" ? location.longitude : null,
+    p_submission_accuracy_m: location.status === "granted" ? location.accuracy : null,
+  });
+  if (error) {
+    if (error.code === "23505") return { success: false, error: "Ya existe una jornada no anulada para esta fecha." };
+    return { success: false, error: "No fue posible registrar la jornada histórica. Revisa los datos e inténtalo nuevamente." };
   }
 
   refreshAttendance();

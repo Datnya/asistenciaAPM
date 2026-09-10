@@ -2,6 +2,7 @@ import { CalendarDays, Clock3, UsersRound } from "lucide-react";
 
 import { AttendanceAction, type OpenAttendance } from "@/components/consultant/attendance-action";
 import { formatDeclaredMinutes } from "@/lib/attendance/hours";
+import { formatLimaDate } from "@/lib/attendance/lima";
 import { DashboardMetric } from "@/components/consultant/dashboard-metric";
 import { requireRole } from "@/lib/auth/guards";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -44,7 +45,7 @@ export default async function ConsultantPage() {
 
   const { data: closedSessions } = await supabase
     .from("attendance_sessions")
-    .select("declared_minutes")
+    .select("work_date, work_type, declared_minutes, entry_time, exit_time, status, clients(name)")
     .eq("consultant_user_id", profile.user_id)
     .eq("status", "closed");
   const totalMinutes = (closedSessions ?? []).reduce((total, session) => total + (session.declared_minutes ?? 0), 0);
@@ -91,6 +92,11 @@ export default async function ConsultantPage() {
               </p>
             </div>
           </div>
+        </section>
+
+        <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
+          <h2 className="text-[24px] font-bold tracking-[-0.03em]">Historial de jornadas</h2>
+          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm text-[#344056]"><thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-3">Fecha</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Tipo de jornada</th><th className="px-4 py-3">Ingreso</th><th className="px-4 py-3">Salida</th><th className="rounded-r-lg px-4 py-3">Horas declaradas</th></tr></thead><tbody>{closedSessions?.length ? closedSessions.map((session) => <tr className="border-b border-[#edf0f3]" key={`${session.work_date}-${session.entry_time}`}><td className="px-4 py-3">{formatLimaDate(session.work_date)}</td><td className="px-4 py-3">{(session.clients as unknown as { name: string } | null)?.name ?? "-"}</td><td className="px-4 py-3">{session.work_type === "remote" ? "Remota" : session.work_type === "onsite" ? "Presencial" : "No especificado"}</td><td className="px-4 py-3">{session.entry_time.slice(0, 5)}</td><td className="px-4 py-3">{session.exit_time?.slice(0, 5) ?? "-"}</td><td className="px-4 py-3">{formatDeclaredMinutes(session.declared_minutes ?? 0)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={6}>Aún no tienes jornadas cerradas.</td></tr>}</tbody></table></div>
         </section>
       </section>
     </main>

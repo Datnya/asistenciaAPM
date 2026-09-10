@@ -20,6 +20,17 @@ export type ConsultantRecord = {
   clients: Array<{ id: string; name: string; isActive: boolean }>;
 };
 
+export type ConsultantAttendanceRecord = {
+  id: string;
+  workDate: string;
+  workType: "remote" | "onsite" | null;
+  clientName: string;
+  entryTime: string;
+  exitTime: string | null;
+  declaredMinutes: number | null;
+  status: string;
+};
+
 function mapConsultant(
   profile: {
     user_id: string;
@@ -105,4 +116,24 @@ export async function listActiveClientNames(): Promise<string[]> {
 
   if (error) throw new Error("No fue posible cargar los clientes.");
   return (data ?? []).map((client) => client.name);
+}
+
+export async function listConsultantAttendance(userId: string): Promise<ConsultantAttendanceRecord[]> {
+  const { data, error } = await createAdminSupabaseClient()
+    .from("attendance_sessions")
+    .select("id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
+    .eq("consultant_user_id", userId)
+    .neq("status", "voided")
+    .order("work_date", { ascending: false });
+  if (error) throw new Error("No fue posible cargar las asistencias del consultor.");
+  return (data ?? []).map((session) => ({
+    id: session.id,
+    workDate: session.work_date,
+    workType: session.work_type as "remote" | "onsite" | null,
+    clientName: (session.clients as unknown as { name: string } | null)?.name ?? "-",
+    entryTime: session.entry_time,
+    exitTime: session.exit_time,
+    declaredMinutes: session.declared_minutes,
+    status: session.status,
+  }));
 }

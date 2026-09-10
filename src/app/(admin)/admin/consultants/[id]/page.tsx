@@ -5,8 +5,10 @@ import { notFound } from "next/navigation";
 import { DashboardMetric } from "@/components/consultant/dashboard-metric";
 import { ProfileAvatar } from "@/components/shared/profile-avatar";
 import { EditConsultantDialog } from "@/components/admin/edit-consultant-dialog";
-import { getConsultant, listActiveClientNames } from "@/lib/admin/consultants";
+import { getConsultant, listActiveClientNames, listConsultantAttendance } from "@/lib/admin/consultants";
 import { requireRole } from "@/lib/auth/guards";
+import { formatDeclaredMinutes } from "@/lib/attendance/hours";
+import { formatLimaDate } from "@/lib/attendance/lima";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,8 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
   const { id } = await params;
   const [consultant, clientNames] = await Promise.all([getConsultant(id), listActiveClientNames()]);
   if (!consultant) notFound();
+  const attendance = await listConsultantAttendance(consultant.userId);
+  const totalMinutes = attendance.filter((session) => session.status === "closed").reduce((total, session) => total + (session.declaredMinutes ?? 0), 0);
 
   const exportUrl = `/api/admin/consultants/${consultant.userId}/attendance-export`;
   const clientLabel = consultant.clients.length
@@ -46,16 +50,16 @@ export default async function ConsultantDetailPage({ params }: { params: Promise
         </div>
 
         <div className="mt-7 grid gap-5 md:grid-cols-2">
-          <DashboardMetric icon={Clock3} label="Horas acumuladas" value="0 h 00 min" />
-          <DashboardMetric icon={CalendarDays} label="Días con asistencia" value="0" />
+          <DashboardMetric icon={Clock3} label="Horas acumuladas" value={formatDeclaredMinutes(totalMinutes)} />
+          <DashboardMetric icon={CalendarDays} label="Días con asistencia" value={String(attendance.filter((session) => session.status === "closed").length)} />
         </div>
 
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
           <h2 className="text-[24px] font-bold tracking-[-0.03em]">Resumen de asistencias</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm text-[#344056]">
-              <thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-4">Fecha</th><th className="px-4 py-4">Cliente</th><th className="px-4 py-4">Ingreso</th><th className="px-4 py-4">Salida</th><th className="px-4 py-4">Horas declaradas</th><th className="rounded-r-lg px-4 py-4">Estado</th></tr></thead>
-              <tbody><tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={6}>Este consultor todavía no tiene asistencias registradas.</td></tr></tbody>
+              <thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-4">Fecha</th><th className="px-4 py-4">Cliente</th><th className="px-4 py-4">Tipo de jornada</th><th className="px-4 py-4">Ingreso</th><th className="px-4 py-4">Salida</th><th className="px-4 py-4">Horas declaradas</th><th className="rounded-r-lg px-4 py-4">Estado</th></tr></thead>
+              <tbody>{attendance.length ? attendance.map((session) => <tr className="border-b border-[#edf0f3]" key={session.id}><td className="px-4 py-3">{formatLimaDate(session.workDate)}</td><td className="px-4 py-3">{session.clientName}</td><td className="px-4 py-3">{session.workType === "remote" ? "Remota" : session.workType === "onsite" ? "Presencial" : "No especificado"}</td><td className="px-4 py-3">{session.entryTime.slice(0, 5)}</td><td className="px-4 py-3">{session.exitTime?.slice(0, 5) ?? "-"}</td><td className="px-4 py-3">{session.declaredMinutes ? formatDeclaredMinutes(session.declaredMinutes) : "-"}</td><td className="px-4 py-3">{session.status === "closed" ? "Completada" : "Pendiente"}</td></tr>) : <tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={7}>Este consultor todavía no tiene asistencias registradas.</td></tr>}</tbody>
             </table>
           </div>
         </section>
