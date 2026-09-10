@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --primary: #b0bf12;
+  --primary-foreground: #0a0a0a;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --border: #e4e4e7;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-login: var(--font-poppins);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.login-page {
+  background:
+    radial-gradient(circle at 50% 68%, rgb(15 23 42 / 3%), transparent 34rem),
+    #ffffff;
+}
+
+.login-card {
+  box-shadow:
+    0 24px 72px rgb(15 23 42 / 7%),
+    0 2px 12px rgb(15 23 42 / 3%);
+}
+
+.login-input {
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 2%);
+}
+
+.login-submit {
+  background: linear-gradient(135deg, #aabd00 0%, #bdd20a 52%, #abc100 100%);
+  box-shadow: 0 12px 24px rgb(176 191 18 / 18%);
+}
+
+.login-submit:hover:not(:disabled) {
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.admin-field {
+  min-height: 3rem;
+  width: 100%;
+  border: 1px solid #d7dce4;
+  border-radius: 0.75rem;
+  padding: 0 1rem;
+  outline: none;
+}
+
+.consultant-field {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #cfd6df;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.65rem 0.8rem;
+  color: #202632;
+  outline: none;
+}
+
+.consultant-field:focus {
+  border-color: #93a900;
+  box-shadow: 0 0 0 3px rgba(176, 191, 18, 0.2);
+}
+
+.admin-field:focus {
+  border-color: #9caf00;
+  box-shadow: 0 0 0 3px rgb(176 191 18 / 15%);
+}
