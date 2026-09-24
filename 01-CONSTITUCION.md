@@ -39,7 +39,7 @@ El producto prioriza tres cosas:
 13. **Solo existen dos roles:** `admin` y `consultant`.
 14. **Solo un admin crea usuarios.** No existe registro público ni auto-registro.
 15. **El usuario visible es un `username`, no un correo.** El producto pide `usuario + contraseña`.
-16. **La autenticación técnica puede usar un alias interno**, pero ese detalle jamás se expone al consultor.
+16. **La autenticación técnica usa un correo real y único**, asociado al perfil y administrado solo desde las operaciones privilegiadas; ese detalle jamás se expone al consultor.
 17. **No hay recuperación de contraseña por correo.** Si un consultor olvida la contraseña, pide a un admin que la restablezca.
 18. **El consultor no puede cambiar su propia contraseña.** La gestión de credenciales es administrativa.
 19. **Nadie puede leer una contraseña existente.** El admin puede restablecerla, nunca verla. Las contraseñas viven bajo Supabase Auth y no se guardan en tablas propias.

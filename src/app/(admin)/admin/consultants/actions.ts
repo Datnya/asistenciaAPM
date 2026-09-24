@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/guards";
 import { createConsultantSchema } from "@/lib/auth/schemas";
-import { buildAuthAlias } from "@/lib/auth/username";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ensureProfilePhotosBucket, PROFILE_PHOTOS_BUCKET } from "@/lib/supabase/profile-photos";
 
@@ -36,15 +35,13 @@ export async function createConsultantAccount(formData: FormData): Promise<Creat
     dni: formData.get("dni"),
     phoneNumber: formData.get("phoneNumber"),
     username: formData.get("username"),
+    email: formData.get("email"),
     password: formData.get("password"),
     clientName: formData.get("clientName"),
   });
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
-
-  const domain = process.env.AUTH_USERNAME_DOMAIN;
-  if (!domain) return { success: false, error: "La configuración de acceso no está disponible." };
 
   const avatar = formData.get("avatar");
   if (avatar instanceof File && avatar.size > 2 * 1024 * 1024) {
@@ -96,7 +93,7 @@ export async function createConsultantAccount(formData: FormData): Promise<Creat
 
   const { firstName, lastName } = splitFullName(data.fullName);
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: buildAuthAlias(data.username, domain),
+    email: data.email,
     password: data.password,
     email_confirm: true,
     app_metadata: { role: "consultant" },
@@ -124,6 +121,7 @@ export async function createConsultantAccount(formData: FormData): Promise<Creat
     const { error: profileError } = await admin.from("profiles").insert({
       user_id: userId,
       username: data.username,
+      auth_email: data.email,
       first_name: firstName,
       last_name: lastName,
       dni: data.dni,
@@ -159,14 +157,12 @@ export async function updateConsultantAccount(formData: FormData): Promise<Creat
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return { success: false, error: "Consultor no válido." };
   const rawPassword = String(formData.get("password") ?? "");
   const parsed = createConsultantSchema.omit({ password: true }).safeParse({
-    fullName: formData.get("fullName"), dni: formData.get("dni"), phoneNumber: formData.get("phoneNumber"), username: formData.get("username"), clientName: formData.get("clientName"),
+    fullName: formData.get("fullName"), dni: formData.get("dni"), phoneNumber: formData.get("phoneNumber"), username: formData.get("username"), email: formData.get("email"), clientName: formData.get("clientName"),
   });
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   if (rawPassword && rawPassword.length < 8) return { success: false, error: "La nueva contraseña debe tener al menos 8 caracteres." };
-  const domain = process.env.AUTH_USERNAME_DOMAIN;
-  if (!domain) return { success: false, error: "La configuración de acceso no está disponible." };
   const admin = createAdminSupabaseClient();
-  const { data: current } = await admin.from("profiles").select("username, avatar_path, role").eq("user_id", userId).maybeSingle();
+  const { data: current } = await admin.from("profiles").select("username, auth_email, avatar_path, role").eq("user_id", userId).maybeSingle();
   if (!current || current.role !== "consultant") return { success: false, error: "El consultor no existe." };
   const data = parsed.data;
   const [{ data: usernameExists }, { data: dniExists }] = await Promise.all([
@@ -194,12 +190,12 @@ export async function updateConsultantAccount(formData: FormData): Promise<Creat
     }
     const { firstName, lastName } = splitFullName(data.fullName);
     const { error: authError } = await admin.auth.admin.updateUserById(userId, {
-      email: buildAuthAlias(data.username, domain),
+      email: data.email,
       ...(rawPassword ? { password: rawPassword } : {}),
     });
     if (authError) throw new Error("No fue posible actualizar las credenciales.");
     const { error: profileError } = await admin.from("profiles").update({
-      username: data.username, first_name: firstName, last_name: lastName, dni: data.dni, phone_number: data.phoneNumber,
+      username: data.username, auth_email: data.email, first_name: firstName, last_name: lastName, dni: data.dni, phone_number: data.phoneNumber,
       ...(avatarPath ? { avatar_path: avatarPath } : {}),
     }).eq("user_id", userId);
     if (profileError) throw new Error("No fue posible actualizar el perfil.");

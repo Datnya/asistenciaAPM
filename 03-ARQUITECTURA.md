@@ -28,7 +28,7 @@
 │  ┌────────────────────────────────────────────────────────────────────┐  │
 │  │          CAPA 2: SERVIDOR — Next.js Server Actions/Routes         │  │
 │  │                                                                    │  │
-│  │  Auth username→alias   Admin users/passwords   Excel export       │  │
+│  │  Auth username→email   Admin users/passwords   Excel export       │  │
 │  │  Validaciones          Correcciones auditadas  Session guards     │  │
 │  └───────────────────────────────┬────────────────────────────────────┘  │
 │                                  │                                       │
@@ -142,7 +142,7 @@ src/
 │   │   ├── server.ts
 │   │   └── admin.ts                      # SERVER ONLY
 │   ├── auth/
-│   │   ├── username.ts                   # normalización + alias interno
+│   │   ├── username.ts                   # normalización de username
 │   │   └── guards.ts
 │   ├── attendance/
 │   │   ├── hours.ts                      # HH:MM <-> minutos
@@ -191,28 +191,22 @@ No aparece campo email, enlace “olvidé mi contraseña” ni registro.
 
 ### 4.2 Cómo usar username con Supabase Auth
 
-Supabase Auth administra la contraseña. APM Control mantiene un `username` humano y genera un **alias email técnico** únicamente para Auth.
+Supabase Auth administra la contraseña. APM Control mantiene un `username` humano para la UI y un correo real, único y confirmado para Auth, almacenado como `profiles.auth_email`.
 
 Concepto:
 
 ```text
 username visible:     patricia.romero
-normalizado:          patricia.romero
-AUTH_USERNAME_DOMAIN: dominio técnico configurado en servidor
-alias interno:        patricia.romero@<AUTH_USERNAME_DOMAIN>
+correo técnico Auth:  correo real asociado al perfil
 ```
 
 Reglas:
 
-1. El dominio técnico viene de env var; no se codifica como dato de negocio.
-2. El alias no se muestra en UI ni reportes.
-3. El login transforma username→alias y ejecuta Auth password sign-in.
-4. Al editar username, admin actualiza de forma coordinada:
-   - alias de `auth.users`;
-   - `profiles.username`.
-5. Si la actualización de Auth falla, no se considera actualizado el username.
-6. No se envían correos a estos aliases.
-7. Las cuentas se crean con email técnico confirmado desde Admin API.
+1. El correo real es único, normalizado y solo es visible para administración.
+2. El login resuelve `username`→`profiles.auth_email` exclusivamente en servidor y luego ejecuta Auth password sign-in.
+3. Al editar correo, administración actualiza coordinadamente `auth.users.email` y `profiles.auth_email`.
+4. Si la actualización de Auth falla, el perfil no se considera actualizado.
+5. Las cuentas se crean con email confirmado desde Admin API.
 
 ### 4.3 Contraseñas
 

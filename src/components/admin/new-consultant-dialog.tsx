@@ -74,7 +74,7 @@ export function NewConsultantDialog({ clientNames }: { clientNames: string[] }) 
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ConsultantFormValues>({
     resolver: zodResolver(createConsultantSchema),
-    defaultValues: { fullName: "", dni: "", phoneNumber: "", username: "", password: "", clientName: "" },
+    defaultValues: { fullName: "", dni: "", phoneNumber: "", username: "", email: "", password: "", clientName: "" },
   });
 
   useEffect(() => {
@@ -209,6 +209,12 @@ export function NewConsultantDialog({ clientNames }: { clientNames: string[] }) 
                         {...register("username", { onChange: () => setUsernameEdited(true) })}
                       />
                       <FieldError message={errors.username?.message} />
+                    </label>
+
+                    <label>
+                      <FieldLabel>Correo electrónico</FieldLabel>
+                      <input autoComplete="email" className="admin-field" placeholder="persona@empresa.com" type="email" {...register("email")} />
+                      <FieldError message={errors.email?.message} />
                     </label>
 
                     <label>

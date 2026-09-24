@@ -10,6 +10,7 @@ type AssignmentRow = {
 export type ConsultantRecord = {
   userId: string;
   username: string;
+  authEmail: string | null;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -40,6 +41,7 @@ function mapConsultant(
   profile: {
     user_id: string;
     username: string;
+    auth_email: string | null;
     first_name: string;
     last_name: string;
     dni: string | null;
@@ -52,6 +54,7 @@ function mapConsultant(
   return {
     userId: profile.user_id,
     username: profile.username,
+    authEmail: profile.auth_email,
     firstName: profile.first_name,
     lastName: profile.last_name,
     fullName: `${profile.first_name} ${profile.last_name}`.trim(),
@@ -73,7 +76,7 @@ export async function listConsultants(): Promise<ConsultantRecord[]> {
   const admin = createAdminSupabaseClient();
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("user_id, username, first_name, last_name, dni, phone_number, avatar_path, is_active")
+    .select("user_id, username, auth_email, first_name, last_name, dni, phone_number, avatar_path, is_active")
     .eq("role", "consultant")
     .order("last_name");
 
@@ -94,7 +97,7 @@ export async function getConsultant(userId: string): Promise<ConsultantRecord | 
   const admin = createAdminSupabaseClient();
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .select("user_id, username, first_name, last_name, dni, phone_number, avatar_path, is_active")
+    .select("user_id, username, auth_email, first_name, last_name, dni, phone_number, avatar_path, is_active")
     .eq("user_id", userId)
     .eq("role", "consultant")
     .maybeSingle();

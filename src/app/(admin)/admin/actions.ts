@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import { createUserSchema, resetPasswordSchema } from "@/lib/auth/schemas";
 import { requireRole } from "@/lib/auth/guards";
-import { buildAuthAlias } from "@/lib/auth/username";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -19,18 +18,16 @@ export async function createManagedUser(input: unknown) {
   await requireRole("admin");
   const parsed = createUserSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
-  const domain = process.env.AUTH_USERNAME_DOMAIN;
-  if (!domain) return { error: "La configuración de acceso no está disponible." };
   const data = parsed.data;
   const admin = createAdminSupabaseClient();
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: buildAuthAlias(data.username, domain), password: data.password, email_confirm: true,
+    email: data.email, password: data.password, email_confirm: true,
     app_metadata: { role: data.role },
   });
   if (authError || !authData.user) return { error: "No fue posible crear el usuario." };
   const { error: profileError } = await admin.from("profiles").insert({
     user_id: authData.user.id, username: data.username, first_name: data.firstName,
-    last_name: data.lastName, role: data.role, is_active: true,
+    last_name: data.lastName, auth_email: data.email, role: data.role, is_active: true,
   });
   if (profileError) {
     await admin.auth.admin.deleteUser(authData.user.id);

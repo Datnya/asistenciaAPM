@@ -87,7 +87,7 @@ GitHub conserva **migraciones**, no registros reales.
 
 APM Control no implementa hashing, salts, sessions ni recuperación propia.
 
-El username visible se traduce a un alias técnico de Auth.
+El username visible se resuelve en el servidor hacia un correo real de Auth, asociado al perfil.
 
 **Descartado:**
 
@@ -110,10 +110,8 @@ El negocio no necesita correo del consultor para entrar.
 Implementación técnica:
 
 ```text
-username -> normalización -> alias email interno -> Supabase Auth
+username -> normalización -> correo Auth del perfil -> Supabase Auth
 ```
-
-El dominio del alias está en `AUTH_USERNAME_DOMAIN` server-side/configurado.
 
 No hay email recovery en MVP.
 
@@ -176,7 +174,7 @@ Van server-side obligatoriamente:
 
 - crear Auth users;
 - restablecer password;
-- cambiar alias Auth;
+- cambiar correo Auth;
 - generar Excel si usa consultas privilegiadas;
 - cualquier uso de secret key;
 - correcciones administrativas transaccionales si la estrategia DB lo requiere.
@@ -252,13 +250,7 @@ AUTH_USERNAME_DOMAIN=
 
 `SUPABASE_SECRET_KEY` bypassa privilegios normales y **jamás** puede importarse desde Client Components ni llevar prefijo `NEXT_PUBLIC_`.
 
-`AUTH_USERNAME_DOMAIN` construye aliases técnicos. Ejemplo conceptual:
-
-```text
-patricia.romero@<AUTH_USERNAME_DOMAIN>
-```
-
-El valor real se configura en cada entorno.
+`AUTH_USERNAME_DOMAIN` se conserva temporalmente solo como respaldo para cuentas antiguas que aún no hayan sido migradas a un correo real.
 
 ### 3.3 Opcionales futuros
 
@@ -311,7 +303,7 @@ Consumidores permitidos:
 ```text
 create user
 reset password
-update auth alias
+update auth email
 operaciones administrativas que explícitamente lo necesiten
 bootstrap
 ```
@@ -653,7 +645,7 @@ minutos -> display
 00:00 inválido
 08:75 inválido
 normalización username
-alias builder
+resolución segura de username a correo Auth
 area Other validation
 250 chars
 filtros reporte

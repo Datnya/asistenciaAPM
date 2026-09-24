@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "maintenance:reset-password": "tsx scripts/reset-user-password.ts",
+    "maintenance:update-email": "tsx scripts/update-user-email.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

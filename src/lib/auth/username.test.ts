@@ -20,12 +20,12 @@ describe("username helpers", () => {
 
   it("reporta un username inválido como error de formulario sin lanzar una excepción", () => {
     expect(() =>
-      loginSchema.safeParse({ username: "Datnya Monzón", password: "datnya123" }),
+      loginSchema.safeParse({ username: "Usuario inválido", password: "password-de-prueba" }),
     ).not.toThrow();
 
     const result = loginSchema.safeParse({
       username: "Datnya Monzón",
-      password: "datnya123",
+      password: "password-de-prueba",
     });
 
     expect(result.success).toBe(false);
@@ -33,8 +33,8 @@ describe("username helpers", () => {
 
   it("normaliza un username válido desde el formulario", () => {
     expect(
-      loginSchema.parse({ username: " Datnya.Monzon ", password: "datnya123" })
+      loginSchema.parse({ username: " Usuario.Valido ", password: "password-de-prueba" })
         .username,
-    ).toBe("datnya.monzon");
+    ).toBe("usuario.valido");
   });
 });
