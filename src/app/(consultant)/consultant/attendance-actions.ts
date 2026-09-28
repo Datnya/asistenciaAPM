@@ -95,6 +95,13 @@ export async function startLiveAttendance(formData: FormData): Promise<Result> {
 
 export async function createHistoricalAttendance(formData: FormData): Promise<Result> {
   const { profile } = await requireRole("consultant");
+  const rawActivities = formData.get("activities");
+  let activities: unknown;
+  try {
+    activities = typeof rawActivities === "string" ? JSON.parse(rawActivities) : null;
+  } catch {
+    activities = null;
+  }
   const parsed = historicalAttendanceSchema.safeParse({
     clientId: formData.get("clientId"),
     workDate: formData.get("workDate"),
@@ -102,9 +109,7 @@ export async function createHistoricalAttendance(formData: FormData): Promise<Re
     entryTime: formData.get("entryTime"),
     exitTime: formData.get("exitTime"),
     declaredHours: formData.get("declaredHours"),
-    areaCode: formData.get("areaCode"),
-    otherAreaName: formData.get("otherAreaName") || undefined,
-    description: formData.get("description"),
+    activities,
   });
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Revisa los datos de la jornada histórica." };
   if (parsed.data.workDate >= getLimaWorkDate()) {
@@ -129,11 +134,11 @@ export async function createHistoricalAttendance(formData: FormData): Promise<Re
     p_entry_time: parsed.data.entryTime,
     p_exit_time: parsed.data.exitTime,
     p_declared_minutes: declaredHoursToMinutes(parsed.data.declaredHours),
-    p_activities: [{
-      areaCode: parsed.data.areaCode,
-      otherAreaName: parsed.data.areaCode === "other" ? parsed.data.otherAreaName ?? null : null,
-      description: parsed.data.description,
-    }],
+    p_activities: parsed.data.activities.map((activity) => ({
+      areaCode: activity.areaCode,
+      otherAreaName: activity.areaCode === "other" ? activity.otherAreaName ?? null : null,
+      description: activity.description,
+    })),
     p_submission_location_status: location.status,
     p_submission_latitude: location.status === "granted" ? location.latitude : null,
     p_submission_longitude: location.status === "granted" ? location.longitude : null,

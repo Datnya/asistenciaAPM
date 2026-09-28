@@ -31,9 +31,15 @@ export type ConsultantAttendanceRecord = {
   exitTime: string | null;
   declaredMinutes: number | null;
   status: string;
+  activities: Array<{
+    id: string;
+    areaCode: string;
+    otherAreaName: string | null;
+    description: string;
+  }>;
 };
 
-export type ConsultantAttendanceExportRecord = ConsultantAttendanceRecord & {
+export type ConsultantAttendanceExportRecord = Omit<ConsultantAttendanceRecord, "activities"> & {
   activitySummary: string;
 };
 
@@ -127,12 +133,23 @@ export async function listActiveClientNames(): Promise<string[]> {
 }
 
 export async function listConsultantAttendance(userId: string): Promise<ConsultantAttendanceRecord[]> {
-  const { data, error } = await createAdminSupabaseClient()
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
     .from("attendance_sessions")
     .select("id, client_id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
     .eq("consultant_user_id", userId)
     .order("work_date", { ascending: false });
   if (error) throw new Error("No fue posible cargar las asistencias del consultor.");
+  const sessionIds = (data ?? []).map((session) => session.id);
+  const { data: activities, error: activitiesError } = sessionIds.length
+    ? await admin
+      .from("attendance_activities")
+      .select("id, session_id, area_code, other_area_name, description")
+      .in("session_id", sessionIds)
+      .order("created_at")
+    : { data: [], error: null };
+  if (activitiesError) throw new Error("No fue posible cargar las actividades del consultor.");
+
   return (data ?? []).map((session) => ({
     id: session.id,
     clientId: session.client_id,
@@ -143,6 +160,9 @@ export async function listConsultantAttendance(userId: string): Promise<Consulta
     exitTime: session.exit_time,
     declaredMinutes: session.declared_minutes,
     status: session.status,
+    activities: (activities ?? [])
+      .filter((activity) => activity.session_id === session.id)
+      .map((activity) => ({ id: activity.id, areaCode: activity.area_code, otherAreaName: activity.other_area_name, description: activity.description })),
   }));
 }
 

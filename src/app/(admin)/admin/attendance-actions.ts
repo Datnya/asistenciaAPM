@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/guards";
 import { declaredHoursToMinutes, normalizeDeclaredHours } from "@/lib/attendance/hours";
+import { attendanceActivitySchema } from "@/lib/attendance/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const uuid = z.string().uuid();
@@ -56,6 +57,41 @@ export async function deleteAdminAttendance(formData: FormData) {
 
   const { error } = await createAdminSupabaseClient().rpc("delete_admin_attendance", { p_session_id: sessionId.data });
   if (error) return { error: error.message || "No fue posible eliminar la asistencia." };
+  refresh(consultantId.data);
+  return { success: true };
+}
+
+export async function updateAdminAttendanceActivity(formData: FormData) {
+  await requireRole("admin");
+  const consultantId = uuid.safeParse(formData.get("consultantId"));
+  const activityId = uuid.safeParse(formData.get("activityId"));
+  const activity = attendanceActivitySchema.safeParse({
+    sessionId: formData.get("sessionId"),
+    areaCode: formData.get("areaCode"),
+    otherAreaName: formData.get("otherAreaName") || undefined,
+    description: formData.get("description"),
+  });
+  if (!consultantId.success || !activityId.success || !activity.success) return { error: "Completa los datos válidos de la actividad." };
+
+  const admin = createAdminSupabaseClient();
+  const { data: session } = await admin
+    .from("attendance_sessions")
+    .select("id")
+    .eq("id", activity.data.sessionId)
+    .eq("consultant_user_id", consultantId.data)
+    .maybeSingle();
+  if (!session) return { error: "La jornada indicada ya no está disponible." };
+
+  const { error } = await admin
+    .from("attendance_activities")
+    .update({
+      area_code: activity.data.areaCode,
+      other_area_name: activity.data.areaCode === "other" ? activity.data.otherAreaName : null,
+      description: activity.data.description,
+    })
+    .eq("id", activityId.data)
+    .eq("session_id", session.id);
+  if (error) return { error: "No fue posible guardar la actividad." };
   refresh(consultantId.data);
   return { success: true };
 }

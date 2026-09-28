@@ -1,62 +1,54 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
-import { correctAdminAttendance, deleteAdminAttendance } from "@/app/(admin)/admin/attendance-actions";
+import { correctAdminAttendance, deleteAdminAttendance, updateAdminAttendanceActivity } from "@/app/(admin)/admin/attendance-actions";
 import type { ConsultantAttendanceRecord } from "@/lib/admin/consultants";
+import { ATTENDANCE_AREAS, getAttendanceAreaLabel } from "@/lib/attendance/areas";
 import { formatMinutesAsHHMM } from "@/lib/attendance/hours";
+import { formatLimaDate } from "@/lib/attendance/lima";
+
+type DialogType = "details" | "edit" | "delete" | "edit-activity" | null;
+type Activity = ConsultantAttendanceRecord["activities"][number];
 
 export function AttendanceAdminActions({ consultantId, attendance, clients }: { consultantId: string; attendance: ConsultantAttendanceRecord; clients: Array<{ id: string; name: string }> }) {
-  const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<DialogType>(null);
+  const [activityToEdit, setActivityToEdit] = useState<Activity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function submitEdit(formData: FormData) {
-    startTransition(async () => {
-      const result = await correctAdminAttendance(formData);
-      if (result?.error) return setError(result.error);
-      setDialog(null); setError(null); router.refresh();
-    });
+    startTransition(async () => { const result = await correctAdminAttendance(formData); if (result?.error) return setError(result.error); setDialog(null); setError(null); router.refresh(); });
   }
   function confirmDelete() {
-    const formData = new FormData();
-    formData.set("consultantId", consultantId);
-    formData.set("sessionId", attendance.id);
-    startTransition(async () => {
-      const result = await deleteAdminAttendance(formData);
-      if (result?.error) return setError(result.error);
-      setDialog(null); setError(null); router.refresh();
-    });
+    const formData = new FormData(); formData.set("consultantId", consultantId); formData.set("sessionId", attendance.id);
+    startTransition(async () => { const result = await deleteAdminAttendance(formData); if (result?.error) return setError(result.error); setDialog(null); setError(null); router.refresh(); });
   }
+  function submitActivity(formData: FormData) {
+    startTransition(async () => { const result = await updateAdminAttendanceActivity(formData); if (result?.error) return setError(result.error); setError(null); setActivityToEdit(null); setDialog("details"); router.refresh(); });
+  }
+  function openActivityEditor(activity: Activity) { setError(null); setActivityToEdit(activity); setDialog("edit-activity"); }
 
   return <>
-    <div className="flex items-center justify-end gap-1">
-      <button aria-label="Editar asistencia" className="grid size-10 place-items-center rounded-lg text-[#4d5d76] hover:bg-[#f0f4e0] hover:text-[#758f00]" onClick={() => { setError(null); setDialog("edit"); }} type="button"><Pencil className="size-4" /></button>
-      <button aria-label="Eliminar asistencia" className="grid size-10 place-items-center rounded-lg text-[#4d5d76] hover:bg-red-50 hover:text-red-700" onClick={() => { setError(null); setDialog("delete"); }} type="button"><Trash2 className="size-4" /></button>
-    </div>
-    {dialog === "edit" ? <Dialog title="Editar asistencia" close={() => setDialog(null)}>
-      <form action={submitEdit} className="mt-5 space-y-4">
-        <input name="consultantId" type="hidden" value={consultantId} /><input name="sessionId" type="hidden" value={attendance.id} />
-        <label className="block text-sm font-semibold">Fecha<input className="admin-field mt-1.5" defaultValue={attendance.workDate} name="workDate" required type="date" /></label>
-        <label className="block text-sm font-semibold">Cliente<select className="admin-field mt-1.5" defaultValue={attendance.clientId} name="clientId" required>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
-        <label className="block text-sm font-semibold">Tipo de jornada<select className="admin-field mt-1.5" defaultValue={attendance.workType ?? ""} name="workType" required><option disabled value="">Selecciona un tipo</option><option value="remote">Remota</option><option value="onsite">Presencial</option></select></label>
-        <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">Ingreso<input className="admin-field mt-1.5" defaultValue={attendance.entryTime.slice(0, 5)} name="entryTime" required type="time" /></label><label className="block text-sm font-semibold">Salida<input className="admin-field mt-1.5" defaultValue={attendance.exitTime?.slice(0, 5) ?? ""} name="exitTime" required type="time" /></label></div>
-        <label className="block text-sm font-semibold">Horas declaradas<input className="admin-field mt-1.5" defaultValue={attendance.declaredMinutes ? formatMinutesAsHHMM(attendance.declaredMinutes) : ""} name="declaredHours" required placeholder="HH:MM" /></label>
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button className="min-h-11 rounded-xl border border-[#d7dce4] px-5 font-semibold" onClick={() => setDialog(null)} type="button">Cancelar</button><button className="min-h-11 rounded-xl bg-[#a9c000] px-5 font-semibold text-white disabled:opacity-60" disabled={pending} type="submit">{pending ? "Guardando…" : "Guardar corrección"}</button></div>
-      </form>
-    </Dialog> : null}
-    {dialog === "delete" ? <Dialog title="¿Eliminar asistencia?" close={() => setDialog(null)}>
-      <p className="mt-4 text-sm leading-6 text-[#596884]">Esta acción eliminará de forma permanente la asistencia y sus actividades asociadas. No podrá recuperarse.</p>
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
-      <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button className="min-h-11 rounded-xl border border-[#d7dce4] px-5 font-semibold" onClick={() => setDialog(null)} type="button">Cancelar</button><button className="min-h-11 rounded-xl bg-red-600 px-5 font-semibold text-white disabled:opacity-60" disabled={pending} onClick={confirmDelete} type="button">{pending ? "Eliminando…" : "Sí, eliminar asistencia"}</button></div>
-    </Dialog> : null}
+    <div className="flex items-center justify-end gap-1"><button className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-[#cfd6df] px-3 text-xs font-semibold text-[#344056] hover:bg-[#f4f7e9]" onClick={() => { setError(null); setDialog("details"); }} type="button"><Eye className="size-4" />Ver jornada completa</button><button aria-label="Editar asistencia" className="grid size-10 place-items-center rounded-lg text-[#4d5d76] hover:bg-[#f0f4e0] hover:text-[#758f00]" onClick={() => { setError(null); setDialog("edit"); }} type="button"><Pencil className="size-4" /></button><button aria-label="Eliminar asistencia" className="grid size-10 place-items-center rounded-lg text-[#4d5d76] hover:bg-red-50 hover:text-red-700" onClick={() => { setError(null); setDialog("delete"); }} type="button"><Trash2 className="size-4" /></button></div>
+    {dialog === "details" ? <DetailsDialog attendance={attendance} close={() => setDialog(null)} editActivity={openActivityEditor} /> : null}
+    {dialog === "edit" ? <Dialog title="Editar asistencia" close={() => setDialog(null)}><form action={submitEdit} className="mt-5 space-y-4"><input name="consultantId" type="hidden" value={consultantId} /><input name="sessionId" type="hidden" value={attendance.id} /><label className="block text-sm font-semibold">Fecha<input className="admin-field mt-1.5" defaultValue={attendance.workDate} name="workDate" required type="date" /></label><label className="block text-sm font-semibold">Cliente<select className="admin-field mt-1.5" defaultValue={attendance.clientId} name="clientId" required>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label className="block text-sm font-semibold">Tipo de jornada<select className="admin-field mt-1.5" defaultValue={attendance.workType ?? ""} name="workType" required><option disabled value="">Selecciona un tipo</option><option value="remote">Remota</option><option value="onsite">Presencial</option></select></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">Ingreso<input className="admin-field mt-1.5" defaultValue={attendance.entryTime.slice(0, 5)} name="entryTime" required type="time" /></label><label className="block text-sm font-semibold">Salida<input className="admin-field mt-1.5" defaultValue={attendance.exitTime?.slice(0, 5) ?? ""} name="exitTime" required type="time" /></label></div><label className="block text-sm font-semibold">Horas declaradas<input className="admin-field mt-1.5" defaultValue={attendance.declaredMinutes ? formatMinutesAsHHMM(attendance.declaredMinutes) : ""} name="declaredHours" required placeholder="HH:MM" /></label>{error ? <p className="text-sm text-red-700">{error}</p> : null}<Footer cancel={() => setDialog(null)} pending={pending} label="Guardar corrección" /></form></Dialog> : null}
+    {dialog === "delete" ? <Dialog title="¿Eliminar asistencia?" close={() => setDialog(null)}><p className="mt-4 text-sm leading-6 text-[#596884]">Esta acción eliminará de forma permanente la asistencia y sus actividades asociadas. No podrá recuperarse.</p>{error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}<Footer cancel={() => setDialog(null)} pending={pending} label="Sí, eliminar asistencia" tone="danger" submit={confirmDelete} /></Dialog> : null}
+    {dialog === "edit-activity" && activityToEdit ? <ActivityEditor attendance={attendance} consultantId={consultantId} activity={activityToEdit} error={error} pending={pending} close={() => { setActivityToEdit(null); setDialog("details"); }} submit={submitActivity} /> : null}
   </>;
 }
 
-function Dialog({ title, children, close }: { title: string; children: React.ReactNode; close: () => void }) {
-  return <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm" role="dialog"><section className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[22px] bg-white p-6 shadow-2xl sm:p-8"><button aria-label="Cerrar" className="absolute top-4 right-4 grid size-10 place-items-center rounded-lg text-[#697186] hover:bg-slate-100" onClick={close} type="button"><X className="size-5" /></button><h2 className="pr-10 text-2xl font-bold tracking-[-0.03em]">{title}</h2>{children}</section></div>;
+function DetailsDialog({ attendance, close, editActivity }: { attendance: ConsultantAttendanceRecord; close: () => void; editActivity: (activity: Activity) => void }) {
+  return <Dialog title="Jornada completa" close={close}><p className="mt-1 text-sm text-[#697186]">{formatLimaDate(attendance.workDate)} · {attendance.clientName}</p><dl className="mt-6 grid gap-3 rounded-xl bg-[#f6f8fa] p-4 text-sm sm:grid-cols-3"><div><dt className="text-[#697186]">Hora de ingreso</dt><dd className="mt-1 font-semibold">{attendance.entryTime.slice(0, 5)}</dd></div><div><dt className="text-[#697186]">Hora de salida</dt><dd className="mt-1 font-semibold">{attendance.exitTime?.slice(0, 5) ?? "-"}</dd></div><div><dt className="text-[#697186]">Horas declaradas</dt><dd className="mt-1 font-semibold">{attendance.declaredMinutes ? formatMinutesAsHHMM(attendance.declaredMinutes) : "-"}</dd></div></dl><div className="mt-7 flex items-center justify-between gap-4"><h3 className="text-lg font-bold">Actividades registradas</h3><p className="text-xs text-[#697186]">Puedes editar cada actividad.</p></div><div className="mt-3 space-y-3">{attendance.activities.length ? attendance.activities.map((activity, index) => <article className="flex items-start justify-between gap-3 rounded-xl border border-[#e2e6eb] p-4" key={activity.id}><div><p className="font-semibold">{index + 1}. {activity.areaCode === "other" && activity.otherAreaName ? activity.otherAreaName : getAttendanceAreaLabel(activity.areaCode)}</p><p className="mt-2 text-sm leading-6 text-[#52617a]">{activity.description}</p></div><button aria-label={`Editar actividad ${index + 1}`} className="grid size-10 shrink-0 place-items-center rounded-lg text-[#4d5d76] hover:bg-[#f0f4e0] hover:text-[#758f00]" onClick={() => editActivity(activity)} type="button"><Pencil className="size-4" /></button></article>) : <p className="rounded-xl bg-[#f6f8fa] p-4 text-sm text-[#697186]">No hay actividades registradas en esta jornada.</p>}</div><div className="mt-7 flex justify-end"><button className="min-h-11 rounded-xl bg-[#a9c000] px-5 font-semibold text-white" onClick={close} type="button">Cerrar</button></div></Dialog>;
 }
+
+function ActivityEditor({ attendance, consultantId, activity, error, pending, close, submit }: { attendance: ConsultantAttendanceRecord; consultantId: string; activity: Activity; error: string | null; pending: boolean; close: () => void; submit: (data: FormData) => void }) {
+  const [area, setArea] = useState(activity.areaCode);
+  return <Dialog title="Editar actividad" close={close}><form action={submit} className="mt-5 space-y-4"><input name="consultantId" type="hidden" value={consultantId} /><input name="sessionId" type="hidden" value={attendance.id} /><input name="activityId" type="hidden" value={activity.id} /><label className="block text-sm font-semibold">Área<select className="admin-field mt-1.5" name="areaCode" value={area} onChange={(event) => setArea(event.target.value)} required><option value="" disabled>Selecciona un área</option>{ATTENDANCE_AREAS.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>{area === "other" ? <label className="block text-sm font-semibold">Área específica<input className="admin-field mt-1.5" defaultValue={activity.otherAreaName ?? ""} name="otherAreaName" required /></label> : null}<label className="block text-sm font-semibold">Motivo o concepto de la reunión<textarea className="admin-field mt-1.5 min-h-28" defaultValue={activity.description} name="description" required /></label>{error ? <p className="text-sm text-red-700">{error}</p> : null}<Footer cancel={close} pending={pending} label="Guardar actividad" /></form></Dialog>;
+}
+
+function Footer({ cancel, pending, label, tone = "primary", submit }: { cancel: () => void; pending: boolean; label: string; tone?: "primary" | "danger"; submit?: () => void }) { return <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button className="min-h-11 rounded-xl border border-[#d7dce4] px-5 font-semibold" onClick={cancel} type="button">Cancelar</button><button className={`min-h-11 rounded-xl px-5 font-semibold text-white disabled:opacity-60 ${tone === "danger" ? "bg-red-600" : "bg-[#a9c000]"}`} disabled={pending} onClick={submit} type={submit ? "button" : "submit"}>{pending ? "Guardando…" : label}</button></div>; }
+function Dialog({ title, children, close }: { title: string; children: React.ReactNode; close: () => void }) { return <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm" role="dialog"><section className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[22px] bg-white p-6 shadow-2xl sm:p-8"><button aria-label="Cerrar" className="absolute top-4 right-4 grid size-10 place-items-center rounded-lg text-[#697186] hover:bg-slate-100" onClick={close} type="button"><X className="size-5" /></button><h2 className="pr-10 text-2xl font-bold tracking-[-0.03em]">{title}</h2>{children}</section></div>; }

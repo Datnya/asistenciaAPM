@@ -1,8 +1,8 @@
 import { CalendarDays, Clock3, UsersRound } from "lucide-react";
 
 import { AttendanceAction, type OpenAttendance } from "@/components/consultant/attendance-action";
+import { AttendanceHistory, type ClosedAttendance } from "@/components/consultant/attendance-history";
 import { formatDeclaredMinutes } from "@/lib/attendance/hours";
-import { formatLimaDate } from "@/lib/attendance/lima";
 import { DashboardMetric } from "@/components/consultant/dashboard-metric";
 import { requireRole } from "@/lib/auth/guards";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -45,11 +45,31 @@ export default async function ConsultantPage() {
 
   const { data: closedSessions } = await supabase
     .from("attendance_sessions")
-    .select("work_date, work_type, declared_minutes, entry_time, exit_time, status, clients(name)")
+    .select("id, work_date, work_type, declared_minutes, entry_time, exit_time, status, clients(name)")
     .eq("consultant_user_id", profile.user_id)
     .eq("status", "closed")
     .order("work_date", { ascending: false });
   const totalMinutes = (closedSessions ?? []).reduce((total, session) => total + (session.declared_minutes ?? 0), 0);
+  const closedSessionIds = (closedSessions ?? []).map((session) => session.id);
+  const { data: closedActivities } = closedSessionIds.length
+    ? await supabase
+      .from("attendance_activities")
+      .select("id, session_id, area_code, other_area_name, description")
+      .in("session_id", closedSessionIds)
+      .order("created_at")
+    : { data: [] };
+  const closedAttendance: ClosedAttendance[] = (closedSessions ?? []).map((session) => ({
+    id: session.id,
+    workDate: session.work_date,
+    workType: session.work_type as ClosedAttendance["workType"],
+    clientName: (session.clients as unknown as { name: string } | null)?.name ?? "-",
+    entryTime: session.entry_time,
+    exitTime: session.exit_time,
+    declaredMinutes: session.declared_minutes,
+    activities: (closedActivities ?? [])
+      .filter((activity) => activity.session_id === session.id)
+      .map((activity) => ({ id: activity.id, areaCode: activity.area_code, otherAreaName: activity.other_area_name, description: activity.description })),
+  }));
   const assignedClient = attendance?.clientName ?? assignedClients[0]?.name ?? null;
 
   return (
@@ -97,7 +117,7 @@ export default async function ConsultantPage() {
 
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
           <h2 className="text-[24px] font-bold tracking-[-0.03em]">Historial de jornadas</h2>
-          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm text-[#344056]"><thead><tr className="bg-[#f1f3f6]"><th className="rounded-l-lg px-4 py-3">Fecha</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Tipo de jornada</th><th className="px-4 py-3">Ingreso</th><th className="px-4 py-3">Salida</th><th className="rounded-r-lg px-4 py-3">Horas declaradas</th></tr></thead><tbody>{closedSessions?.length ? closedSessions.map((session) => <tr className="border-b border-[#edf0f3]" key={`${session.work_date}-${session.entry_time}`}><td className="px-4 py-3">{formatLimaDate(session.work_date)}</td><td className="px-4 py-3">{(session.clients as unknown as { name: string } | null)?.name ?? "-"}</td><td className="px-4 py-3">{session.work_type === "remote" ? "Remota" : session.work_type === "onsite" ? "Presencial" : "No especificado"}</td><td className="px-4 py-3">{session.entry_time.slice(0, 5)}</td><td className="px-4 py-3">{session.exit_time?.slice(0, 5) ?? "-"}</td><td className="px-4 py-3">{formatDeclaredMinutes(session.declared_minutes ?? 0)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-[#697186]" colSpan={6}>Aún no tienes jornadas cerradas.</td></tr>}</tbody></table></div>
+          <AttendanceHistory sessions={closedAttendance} />
         </section>
       </section>
     </main>
