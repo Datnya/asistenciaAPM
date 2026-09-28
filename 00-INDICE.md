@@ -16,8 +16,9 @@
 | 03 | [ARQUITECTURA.md](03-ARQUITECTURA.md) | "Cómo está diseñado APM Control end-to-end" | Para implementar flujos, tablas, permisos, reportes y pantallas |
 | 04 | [MAPA-ASCII.md](04-MAPA-ASCII.md) | "Cómo se ve todo de un vistazo" | Para orientarse rápido antes de tocar una zona del sistema |
 | 05 | [STACK-TECNOLOGICO.md](05-STACK-TECNOLOGICO.md) | "Qué tecnologías usamos, por qué y cuáles no" | Antes de agregar/cambiar librerías, servicios o patrones |
+| CTX | [APM-CONTEXTO-PLATAFORMA.md](APM-CONTEXTO-PLATAFORMA.md) | "Cómo funciona la plataforma actualmente y cómo continuar su mantenimiento" | Antes de retomar trabajo con otra persona o modelo de IA |
 
-**No crear documentos adicionales por defecto.** Una nueva regla de negocio, dependencia, flujo o decisión se incorpora al documento que corresponda. Solo el owner puede decidir que el proyecto necesita un documento nuevo.
+**No crear documentos adicionales por defecto.** Una nueva regla de negocio, dependencia, flujo o decisión se incorpora al documento que corresponda. Solo el owner puede decidir que el proyecto necesita un documento nuevo. `APM-CONTEXTO-PLATAFORMA.md` es una excepción solicitada por el owner para continuidad operativa y refleja el estado implementado más reciente.
 
 ---
 
