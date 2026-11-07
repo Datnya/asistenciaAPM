@@ -3,14 +3,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { getActiveSessionProfile } from "@/lib/auth/guards";
-import { getLimaWorkDate } from "@/lib/attendance/lima";
+import { reportFileName, reportPeriodLabel } from "@/lib/reports/period";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ATTENDANCE_EVIDENCE_BUCKET } from "@/lib/supabase/attendance-evidence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const months = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
 const border: ExcelJS.Border = { style: "thin", color: { argb: "FFB9BFC4" } };
 
 export async function GET(request: Request) {
@@ -19,17 +18,17 @@ export async function GET(request: Request) {
   const role = session.user.app_metadata.role;
   if (role !== "admin" && role !== "consultant" || session.profile.role !== role) return Response.json({ error: "Acceso denegado." }, { status: 403 });
   const url = new URL(request.url);
-  const today = getLimaWorkDate();
-  const year = Number(url.searchParams.get("year"));
-  const month = Number(url.searchParams.get("month"));
-  if (!Number.isInteger(year) || year < 1900 || year > Number(today.slice(0, 4)) || !Number.isInteger(month) || month < 1 || month > 12) return Response.json({ error: "Selecciona un mes y año válidos." }, { status: 400 });
+  const periodId = url.searchParams.get("period");
+  if (!periodId || !/^[0-9a-f-]{36}$/i.test(periodId)) return Response.json({ error: "Selecciona un período válido." }, { status: 400 });
   const admin = createAdminSupabaseClient();
-  const consultantId = role === "consultant" ? session.user.id : url.searchParams.get("consultant");
-  if (!consultantId || !/^[0-9a-f-]{36}$/i.test(consultantId)) return Response.json({ error: "Selecciona un consultor." }, { status: 400 });
+  const { data: period, error: periodError } = await admin.from("report_periods").select("consultant_user_id, start_date, end_date").eq("id", periodId).maybeSingle();
+  if (periodError || !period) return Response.json({ error: "Período no encontrado." }, { status: 404 });
+  const consultantId = period.consultant_user_id;
+  if (role === "consultant" && consultantId !== session.user.id) return Response.json({ error: "Acceso denegado." }, { status: 403 });
   const { data: profile } = await admin.from("profiles").select("first_name, last_name").eq("user_id", consultantId).eq("role", "consultant").maybeSingle();
   if (!profile) return Response.json({ error: "Consultor no encontrado." }, { status: 404 });
-  const from = `${year}-${String(month).padStart(2, "0")}-01`;
-  const to = `${year}-${String(month).padStart(2, "0")}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`;
+  const from = period.start_date;
+  const to = period.end_date;
   const { data: sessions, error } = await admin.from("attendance_sessions").select("work_date, daily_summary, declared_minutes, evidence_paths").eq("consultant_user_id", consultantId).eq("status", "closed").gte("work_date", from).lte("work_date", to).order("work_date", { ascending: false });
   if (error) return Response.json({ error: "No fue posible cargar las jornadas." }, { status: 500 });
 
@@ -45,11 +44,11 @@ export async function GET(request: Request) {
   } catch { sheet.getCell("B2").value = "APM GROUP"; }
   sheet.mergeCells("C2:G2");
   const title = sheet.getCell("C2");
-  title.value = `AVANCE EN EL MONITOREO Y SEGUIMIENTO AL SISTEMA INTEGRADO DE GESTIÓN\n${months[month - 1]} ${year}`;
+  title.value = `AVANCE EN EL MONITOREO Y SEGUIMIENTO AL SISTEMA INTEGRADO DE GESTIÓN\n${reportPeriodLabel(from, to).toUpperCase()}`;
   title.font = { name: "Arial", size: 20, bold: true, color: { argb: "FF111111" } };
   title.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
   sheet.mergeCells("B3:G3");
-  sheet.getCell("B3").value = `${profile.first_name} ${profile.last_name} · ${months[month - 1]} ${year}`;
+  sheet.getCell("B3").value = `${profile.first_name} ${profile.last_name} · ${reportPeriodLabel(from, to)}`;
   sheet.getCell("B3").font = { name: "Arial", size: 11, color: { argb: "FF4B5563" } };
   sheet.getRow(3).height = 24;
   sheet.getRow(4).values = [null, "N.º", "ACTIVIDAD", "DÍA", "FECHA", "HORAS", "EVIDENCIA"];
@@ -88,5 +87,5 @@ export async function GET(request: Request) {
   totalRow.height = 32;
   for (let column = 2; column <= 7; column++) { const cell = totalRow.getCell(column); cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF1D4" } }; cell.font = { bold: true }; cell.border = { top: border, bottom: border, left: border, right: border }; }
   const output = await workbook.xlsx.writeBuffer();
-  return new Response(new Uint8Array(output), { headers: { "Cache-Control": "no-store", "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="reporte-mensual-${year}-${String(month).padStart(2, "0")}.xlsx"` } });
+  return new Response(new Uint8Array(output), { headers: { "Cache-Control": "no-store", "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="Avance_${from}_${to}.xlsx"; filename*=UTF-8''${encodeURIComponent(reportFileName(from, to))}` } });
 }

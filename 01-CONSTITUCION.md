@@ -36,7 +36,7 @@ El producto prioriza tres cosas:
 
 **Ampliación aprobada:** Toda jornada nueva, actual o histórica, requiere una frase de actividad general y una o dos imágenes de evidencia para poder cerrarse. El consultor puede consultar sus evidencias y su jornada cerrada sigue siendo de solo lectura. Los registros cerrados con anterioridad a esta ampliación conservan su validez.
 
-**Corte mensual:** Las tarjetas de horas acumuladas y días con asistencia de ambos roles muestran el mes calendario actual de Lima. El historial permite filtrar por año, mes y día. El reporte mensual del consultor usa únicamente sus jornadas cerradas del mes seleccionado y suma sus horas declaradas; ADMIN puede seleccionar cualquier consultor.
+**Corte mensual:** Las tarjetas de horas acumuladas y días con asistencia de ambos roles muestran el mes calendario actual de Lima. El historial permite filtrar por año, mes y día. El reporte de evidencias usa un período de inicio y fin elegidos por CONSULTANT para su propia cuenta, o por ADMIN para cualquier consultor. ADMIN puede corregirlo. Los períodos de un consultor son consecutivos y no repiten fechas; el siguiente empieza el día posterior al cierre anterior. El reporte suma únicamente las horas declaradas de jornadas cerradas dentro de ese rango.
 
 ### 2.2 Usuarios y acceso
 
