@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { createConsultantSchema } from "@/lib/auth/schemas";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ensureProfilePhotosBucket, PROFILE_PHOTOS_BUCKET } from "@/lib/supabase/profile-photos";
+import { completeConsultantDeletion } from "@/lib/admin/consultant-deletion";
 
 export type CreateConsultantResult =
   | { success: true; username: string }
@@ -209,4 +210,74 @@ export async function updateConsultantAccount(formData: FormData): Promise<Creat
   }
   revalidatePath("/admin"); revalidatePath(`/admin/consultants/${userId}`); revalidatePath("/consultant"); revalidatePath("/consultant/profile");
   return { success: true, username: data.username };
+}
+
+type DeleteConsultantResult =
+  | { success: true }
+  | { success: false; error: string; pendingJobId?: string };
+
+function revalidateDeletedConsultant(userId: string) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/monthly-report");
+  revalidatePath(`/admin/consultants/${userId}`);
+}
+
+export async function deleteConsultantAccount(userId: string): Promise<DeleteConsultantResult> {
+  await requireRole("admin");
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { success: false, error: "El consultor indicado no es válido." };
+
+  const admin = createAdminSupabaseClient();
+  const { data: profile, error: profileError } = await admin.from("profiles").select("role").eq("user_id", userId).maybeSingle();
+  if (profileError || profile?.role !== "consultant") return { success: false, error: "El consultor no existe o no puede eliminarse." };
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
+  if (authError && authError.status !== 404) return { success: false, error: "No fue posible verificar las credenciales del consultor." };
+  if (authData.user && authData.user.app_metadata.role !== "consultant") return { success: false, error: "La cuenta tiene un rol distinto y no puede eliminarse desde aquí." };
+
+  const { data: jobId, error: prepareError } = await admin.rpc("prepare_consultant_deletion", { p_consultant_user_id: userId });
+  if (prepareError || typeof jobId !== "string") return { success: false, error: prepareError?.message ?? "No fue posible eliminar los datos del consultor." };
+
+  revalidateDeletedConsultant(userId);
+  try {
+    await completeConsultantDeletion(jobId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Queda una limpieza pendiente.", pendingJobId: jobId };
+  }
+}
+
+export async function retryConsultantDeletion(jobId: string): Promise<DeleteConsultantResult> {
+  await requireRole("admin");
+  if (!/^[0-9a-f-]{36}$/i.test(jobId)) return { success: false, error: "La tarea indicada no es válida." };
+  try {
+    await completeConsultantDeletion(jobId);
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Queda una limpieza pendiente.", pendingJobId: jobId };
+  }
+}
+
+export async function setConsultantActive(userId: string, isActive: boolean): Promise<{ success: true } | { success: false; error: string }> {
+  await requireRole("admin");
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { success: false, error: "El consultor indicado no es válido." };
+  const admin = createAdminSupabaseClient();
+  const { data: profile, error: profileError } = await admin.from("profiles").select("role, is_active").eq("user_id", userId).maybeSingle();
+  if (profileError || profile?.role !== "consultant") return { success: false, error: "El consultor no existe." };
+
+  if (!isActive) {
+    const { error: profileUpdateError } = await admin.from("profiles").update({ is_active: false }).eq("user_id", userId).eq("role", "consultant");
+    if (profileUpdateError) return { success: false, error: "No fue posible bloquear el acceso del consultor." };
+    const { error: banError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
+    if (banError) return { success: false, error: "El acceso a la plataforma quedó bloqueado, pero falta bloquear el inicio de sesión en Auth. Reintenta la acción." };
+  } else {
+    const { error: unbanError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+    if (unbanError) return { success: false, error: "No fue posible habilitar las credenciales del consultor." };
+    const { error: profileUpdateError } = await admin.from("profiles").update({ is_active: true }).eq("user_id", userId).eq("role", "consultant");
+    if (profileUpdateError) return { success: false, error: "No fue posible habilitar el acceso a la plataforma. Reintenta la acción." };
+  }
+  revalidatePath("/admin");
+  revalidatePath(`/admin/consultants/${userId}`);
+  revalidatePath("/admin/users");
+  return { success: true };
 }

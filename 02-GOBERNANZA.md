@@ -267,7 +267,11 @@ Antes de un backfill/update masivo:
 3. respaldar si el cambio no es trivialmente reversible;
 4. aplicar con condición acotada;
 5. volver a contar/verificar;
-6. no tocar auditoría histórica salvo al eliminar físicamente su jornada mediante la confirmación ADMIN.
+6. no tocar auditoría histórica salvo al eliminar físicamente su jornada o su consultor propietario mediante la confirmación ADMIN.
+
+### 5.4 Conservación de datos al desplegar
+
+Un push a GitHub o un deployment de Vercel no modifica por sí mismo los datos de Supabase. Antes de una migración que cambie datos existentes, registrar conteos de perfiles y jornadas, revisar las sentencias de borrado y verificar los conteos después. Los filtros de interfaz nunca deben confundirse con eliminación: mostrar claramente el período seleccionado cuando una vista esté vacía.
 
 ---
 

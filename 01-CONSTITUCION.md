@@ -47,7 +47,7 @@ El producto prioriza tres cosas:
 17. **No hay recuperación de contraseña por correo.** Si un consultor olvida la contraseña, pide a un admin que la restablezca.
 18. **El consultor no puede cambiar su propia contraseña.** La gestión de credenciales es administrativa.
 19. **Nadie puede leer una contraseña existente.** El admin puede restablecerla, nunca verla. Las contraseñas viven bajo Supabase Auth y no se guardan en tablas propias.
-20. **Un usuario desactivado pierde acceso, pero su historial no se borra.** Desactivar ≠ eliminar.
+20. **Un usuario desactivado pierde acceso, pero su historial no se borra.** ADMIN puede inhabilitar y volver a habilitar a un CONSULTANT. La inhabilitación bloquea el acceso en la aplicación y el inicio de sesión en Supabase Auth; desactivar ≠ eliminar.
 21. **El botón administrativo es “Crear nuevo usuario”** y permite crear tanto `admin` como `consultant`.
 22b. **El rol autorizado vive en `auth.users.app_metadata.role`; `profiles.role` es un espejo operativo server-maintained.** El usuario jamás puede proponer o editar su propio rol.
 23. **El rol se define al crear la cuenta.** Cambiar de rol no es un flujo cotidiano; cualquier soporte futuro para cambiarlo requiere revisión de seguridad.
@@ -111,11 +111,11 @@ Otro
 50. **Los timestamps técnicos del servidor son distintos de los horarios de negocio introducidos por el usuario.** Ambos se conservan.
 51. **Una corrección administrativa de una jornada cerrada no requiere motivo manual.**
 52. **Toda corrección administrativa genera auditoría** con actor, fecha técnica, valor anterior y valor nuevo.
-53. **La auditoría es append-only para jornadas existentes.** No se edita ni elimina de forma aislada desde la aplicación; se elimina únicamente como parte de la eliminación física confirmada de su jornada por ADMIN.
+53. **La auditoría es append-only para jornadas existentes.** No se edita ni elimina de forma aislada desde la aplicación; se elimina únicamente junto con su jornada cuando ADMIN confirma eliminar la asistencia o el consultor completo.
 54. **Solo un ADMIN puede eliminar físicamente una jornada desde la UI**, tras una confirmación explícita. La eliminación retira también sus actividades y cualquier auditoría asociada.
 55. **Eliminar una jornada es irreversible** y no puede realizarse desde una cuenta CONSULTANT.
 56. **Los clientes se desactivan, no se borran si tienen historia asociada.**
-57. **Los usuarios se desactivan, no se borran si tienen historia asociada.**
+57. **Desactivar un usuario conserva su historia.** Como excepción explícita, ADMIN puede eliminar físicamente una cuenta CONSULTANT y toda su información asociada desde el detalle del consultor, tras una segunda confirmación irreversible. No existe esta opción para cuentas ADMIN ni para CONSULTANT sobre su propia cuenta.
 
 ### 2.8 Arquitectura
 
@@ -174,7 +174,7 @@ Si una regla solo existe como texto en este documento y no existe un mecanismo t
 6. No permitir autoservicio de contraseña al consultor.
 7. No mostrar contraseñas actuales al admin.
 8. No exigir geolocalización para poder registrar asistencia.
-9. No borrar usuarios ni clientes con hard-delete desde la UI; la asistencia puede ser eliminada únicamente por ADMIN con confirmación explícita.
+9. No borrar clientes ni cuentas ADMIN con hard-delete desde la UI. ADMIN puede eliminar una asistencia o una cuenta CONSULTANT con toda su historia mediante los flujos de confirmación explícita.
 10. No permitir al consultor modificar una jornada cerrada.
 11. No permitir salida sin actividades.
 12. No dividir el producto en app móvil nativa + web. Es una sola web responsive.

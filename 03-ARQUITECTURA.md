@@ -819,6 +819,8 @@ Editar username
 Restablecer contraseña
 Activar / desactivar
 Asignar clientes (consultant)
+Inhabilitar / habilitar consultor sin borrar datos
+Eliminar consultor y todos sus datos (solo ADMIN, confirmación adicional)
 ```
 
 Creación:
@@ -836,6 +838,10 @@ Foto de perfil opcional y ajustable
 El username sugerido puede ser `nombre.apellido`; si existe, sugerir sufijo (`nombre.apellido2`).
 
 La foto se procesa en el navegador a JPG cuadrado antes del envío y se almacena en un bucket privado de Supabase Storage. Solo el propio usuario autenticado o una cuenta ADMIN pueden solicitarla mediante el servidor; nunca se usa una URL pública.
+
+La eliminación definitiva de un consultor inicia desde `Editar consultor`. Una confirmación separada identifica la cuenta y explica la pérdida irreversible. Una función transaccional elimina su auditoría asociada, actividades, jornadas, asignaciones y perfil; no toca los clientes compartidos. El servidor elimina después todas sus fotos y evidencias del almacenamiento privado y su cuenta de Supabase Auth. Si la limpieza externa falla, queda una tarea visible para ADMIN que puede reintentarse. GitHub contiene código y nunca estas jornadas o imágenes.
+
+La inhabilitación es una acción diferente. `profiles.is_active=false` hace que la aplicación y RLS rechacen al consultor de inmediato; el servidor también aplica un bloqueo de inicio de sesión en Supabase Auth. Habilitar revierte ambos estados. Ninguna de estas acciones modifica jornadas, auditorías o imágenes.
 
 ### 12.5 Clientes
 

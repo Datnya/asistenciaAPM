@@ -2,15 +2,22 @@ import { UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { NewConsultantDialog } from "@/components/admin/new-consultant-dialog";
+import { PendingConsultantDeletions } from "@/components/admin/pending-consultant-deletions";
 import { ProfileAvatar } from "@/components/shared/profile-avatar";
 import { listActiveClientNames, listConsultants } from "@/lib/admin/consultants";
 import { requireRole } from "@/lib/auth/guards";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   await requireRole("admin");
-  const [consultants, clientNames] = await Promise.all([listConsultants(), listActiveClientNames()]);
+  const [consultants, clientNames, pendingResult] = await Promise.all([
+    listConsultants(),
+    listActiveClientNames(),
+    createAdminSupabaseClient().from("consultant_deletion_jobs").select("id, username").order("created_at"),
+  ]);
+  if (pendingResult.error) throw new Error("No fue posible comprobar las limpiezas pendientes.");
 
   return (
     <main className="px-4 py-8 sm:px-6 lg:px-9 lg:py-12 xl:px-10 2xl:px-12">
@@ -19,6 +26,8 @@ export default async function AdminPage() {
           <h1 className="text-[38px] leading-none font-extrabold tracking-[-0.045em] sm:text-[48px]">Dashboard</h1>
           <NewConsultantDialog clientNames={clientNames} />
         </div>
+
+        <PendingConsultantDeletions jobs={pendingResult.data ?? []} />
 
         {consultants.length ? (
           <div className="mt-10 grid gap-6 xl:grid-cols-2">
