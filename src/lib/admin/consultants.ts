@@ -30,6 +30,8 @@ export type ConsultantAttendanceRecord = {
   entryTime: string;
   exitTime: string | null;
   declaredMinutes: number | null;
+  dailySummary: string | null;
+  evidenceCount: number;
   status: string;
   activities: Array<{
     id: string;
@@ -39,7 +41,7 @@ export type ConsultantAttendanceRecord = {
   }>;
 };
 
-export type ConsultantAttendanceExportRecord = Omit<ConsultantAttendanceRecord, "activities"> & {
+export type ConsultantAttendanceExportRecord = Omit<ConsultantAttendanceRecord, "activities" | "dailySummary" | "evidenceCount"> & {
   activitySummary: string;
 };
 
@@ -132,13 +134,15 @@ export async function listActiveClientNames(): Promise<string[]> {
   return (data ?? []).map((client) => client.name);
 }
 
-export async function listConsultantAttendance(userId: string): Promise<ConsultantAttendanceRecord[]> {
+export async function listConsultantAttendance(userId: string, from?: string, to?: string): Promise<ConsultantAttendanceRecord[]> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
+  let query = admin
     .from("attendance_sessions")
-    .select("id, client_id, work_date, work_type, entry_time, exit_time, declared_minutes, status, clients(name)")
-    .eq("consultant_user_id", userId)
-    .order("work_date", { ascending: false });
+    .select("id, client_id, work_date, work_type, entry_time, exit_time, declared_minutes, daily_summary, evidence_paths, status, clients(name)")
+    .eq("consultant_user_id", userId);
+  if (from) query = query.gte("work_date", from);
+  if (to) query = query.lte("work_date", to);
+  const { data, error } = await query.order("work_date", { ascending: false });
   if (error) throw new Error("No fue posible cargar las asistencias del consultor.");
   const sessionIds = (data ?? []).map((session) => session.id);
   const { data: activities, error: activitiesError } = sessionIds.length
@@ -159,6 +163,8 @@ export async function listConsultantAttendance(userId: string): Promise<Consulta
     entryTime: session.entry_time,
     exitTime: session.exit_time,
     declaredMinutes: session.declared_minutes,
+    dailySummary: session.daily_summary,
+    evidenceCount: session.evidence_paths?.length ?? 0,
     status: session.status,
     activities: (activities ?? [])
       .filter((activity) => activity.session_id === session.id)

@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { declaredHoursToMinutes, normalizeDeclaredHours } from "@/lib/attendance/hours";
 import { attendanceActivitySchema } from "@/lib/attendance/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { removeAttendanceEvidence } from "@/lib/supabase/attendance-evidence";
 
 const uuid = z.string().uuid();
 const workType = z.enum(["remote", "onsite"]);
@@ -55,8 +56,12 @@ export async function deleteAdminAttendance(formData: FormData) {
   const sessionId = uuid.safeParse(formData.get("sessionId"));
   if (!consultantId.success || !sessionId.success) return { error: "La asistencia indicada no es válida." };
 
-  const { error } = await createAdminSupabaseClient().rpc("delete_admin_attendance", { p_session_id: sessionId.data });
+  const admin = createAdminSupabaseClient();
+  const { data: attendance } = await admin.from("attendance_sessions").select("evidence_paths").eq("id", sessionId.data).eq("consultant_user_id", consultantId.data).maybeSingle();
+  if (!attendance) return { error: "La asistencia indicada no existe." };
+  const { error } = await admin.rpc("delete_admin_attendance", { p_session_id: sessionId.data });
   if (error) return { error: error.message || "No fue posible eliminar la asistencia." };
+  await removeAttendanceEvidence(admin, attendance.evidence_paths ?? []);
   refresh(consultantId.data);
   return { success: true };
 }

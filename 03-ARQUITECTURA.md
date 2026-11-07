@@ -712,6 +712,8 @@ El admin puede cerrar la jornada desde detalle administrativo si el consultant l
 
 ## 11. Historial del consultor
 
+Las tarjetas de horas declaradas y días con asistencia muestran únicamente jornadas cerradas del mes calendario actual en America/Lima. El historial abre en el mes actual y permite filtrar por año, mes y día, en orden descendente. Una jornada cerrada permanece en solo lectura para el consultor.
+
 ### 11.1 Tarjetas
 
 ```text
@@ -787,6 +789,8 @@ Estado: En jornada
 No mostrar contador transcurrido; sería inconsistente con la Constitución. Puede mostrar hora de ingreso sin derivar “horas trabajadas”.
 
 ### 12.3 Asistencias
+
+En el detalle de cada consultor, las tarjetas de horas acumuladas y días con asistencia muestran únicamente las jornadas cerradas del **mes calendario actual en America/Lima**, aunque el historial esté filtrado a otro período. El resumen de asistencias se abre en el mes actual y permite consultar un año completo, un mes del año o un día exacto del mes elegido. El listado conserva el orden descendente por fecha de jornada.
 
 Filtros:
 
@@ -1092,6 +1096,12 @@ No derivar de entry/exit.
 Server-side con ExcelJS. El browser recibe `.xlsx` descargable.
 
 La exportación no crea un “registro paralelo”; consulta DB en ese momento.
+
+### 17.6 Reporte mensual de evidencias
+
+ADMIN y CONSULTANT tienen una vista de reporte mensual que abre en el mes actual. CONSULTANT solo consulta sus propios datos; ADMIN elige consultor, mes y año. El Excel mensual sigue la estructura visual del formato APM proporcionado: logo, título, actividad general, día de la semana, fecha, horas y evidencia. Cada jornada cerrada aporta una fila; el total procede exclusivamente de `declared_minutes`. Las una o dos imágenes se incrustan desde un bucket privado. Los reportes antiguos pueden mostrar jornadas anteriores a la obligación de evidencia sin imágenes.
+
+Para cada cierre nuevo se guarda `daily_summary`, de hasta 250 caracteres, y `evidence_paths`, con uno o dos objetos privados. La base valida ambos campos al cerrar las jornadas nuevas. El acceso de lectura a cada imagen verifica en el servidor que el solicitante sea su consultor propietario o ADMIN. La eliminación administrativa de una jornada retira también sus imágenes.
 
 ---
 

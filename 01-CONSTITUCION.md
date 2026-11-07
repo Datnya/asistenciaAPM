@@ -34,6 +34,10 @@ El producto prioriza tres cosas:
 11. **No existe salida válida sin actividades.** Debe haber al menos una actividad con área y descripción antes de cerrar la jornada.
 12. **El historial del consultor siempre permanece visible para él**, incluyendo sus horas declaradas acumuladas.
 
+**Ampliación aprobada:** Toda jornada nueva, actual o histórica, requiere una frase de actividad general y una o dos imágenes de evidencia para poder cerrarse. El consultor puede consultar sus evidencias y su jornada cerrada sigue siendo de solo lectura. Los registros cerrados con anterioridad a esta ampliación conservan su validez.
+
+**Corte mensual:** Las tarjetas de horas acumuladas y días con asistencia de ambos roles muestran el mes calendario actual de Lima. El historial permite filtrar por año, mes y día. El reporte mensual del consultor usa únicamente sus jornadas cerradas del mes seleccionado y suma sus horas declaradas; ADMIN puede seleccionar cualquier consultor.
+
 ### 2.2 Usuarios y acceso
 
 13. **Solo existen dos roles:** `admin` y `consultant`.

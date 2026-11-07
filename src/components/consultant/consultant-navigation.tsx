@@ -1,6 +1,6 @@
 "use client";
 
-import { House, UserRound } from "lucide-react";
+import { FileSpreadsheet, House, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { href: "/consultant", label: "Dashboard", icon: House },
+  { href: "/consultant/monthly-report", label: "Reporte mensual", icon: FileSpreadsheet },
   { href: "/consultant/profile", label: "Perfil", icon: UserRound },
 ] as const;
 

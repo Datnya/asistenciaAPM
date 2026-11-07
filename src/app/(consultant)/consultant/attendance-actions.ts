@@ -7,6 +7,7 @@ import { getLimaWorkDate } from "@/lib/attendance/lima";
 import { attendanceActivitySchema, closeAttendanceSchema, historicalAttendanceSchema, startAttendanceSchema } from "@/lib/attendance/validation";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { removeAttendanceEvidence, uploadAttendanceEvidence } from "@/lib/supabase/attendance-evidence";
 
 type Result = { success: true } | { success: false; error: string };
 type LocationPayload = {
@@ -66,6 +67,7 @@ export async function startLiveAttendance(formData: FormData): Promise<Result> {
     .eq("consultant_user_id", profile.user_id)
     .eq("client_id", parsed.data.clientId)
     .eq("is_active", true)
+    .eq("clients.is_active", true)
     .maybeSingle();
   if (!assignment) return { success: false, error: "El cliente seleccionado ya no está disponible para tu jornada." };
 
@@ -125,6 +127,22 @@ export async function createHistoricalAttendance(formData: FormData): Promise<Re
     .maybeSingle();
   if (existing) return { success: false, error: "Tienes una jornada pendiente de cierre. Finalízala antes de registrar una fecha anterior." };
 
+  const { data: assignment } = await admin
+    .from("consultant_client_assignments")
+    .select("id, clients!inner(is_active)")
+    .eq("consultant_user_id", profile.user_id)
+    .eq("client_id", parsed.data.clientId)
+    .eq("is_active", true)
+    .eq("clients.is_active", true)
+    .maybeSingle();
+  if (!assignment) return { success: false, error: "El cliente seleccionado ya no está disponible para tu jornada." };
+
+  const dailySummary = String(formData.get("dailySummary") ?? "").trim();
+  if (!dailySummary || dailySummary.length > 250) return { success: false, error: "Resume la actividad general de la jornada en hasta 250 caracteres." };
+  let evidencePaths: string[];
+  try { evidencePaths = await uploadAttendanceEvidence(admin, profile.user_id, formData); }
+  catch (error) { return { success: false, error: error instanceof Error ? error.message : "No fue posible cargar la evidencia." }; }
+
   const location = locationFrom(formData);
   const { error } = await admin.rpc("create_historical_attendance", {
     p_consultant_user_id: profile.user_id,
@@ -139,12 +157,15 @@ export async function createHistoricalAttendance(formData: FormData): Promise<Re
       otherAreaName: activity.areaCode === "other" ? activity.otherAreaName ?? null : null,
       description: activity.description,
     })),
+    p_daily_summary: dailySummary,
+    p_evidence_paths: evidencePaths,
     p_submission_location_status: location.status,
     p_submission_latitude: location.status === "granted" ? location.latitude : null,
     p_submission_longitude: location.status === "granted" ? location.longitude : null,
     p_submission_accuracy_m: location.status === "granted" ? location.accuracy : null,
   });
   if (error) {
+    await removeAttendanceEvidence(admin, evidencePaths);
     if (error.code === "23505") return { success: false, error: "Ya existe una jornada no anulada para esta fecha." };
     return { success: false, error: "No fue posible registrar la jornada histórica. Revisa los datos e inténtalo nuevamente." };
   }
@@ -225,14 +246,23 @@ export async function closeLiveAttendance(formData: FormData): Promise<Result> {
     .eq("session_id", session.id);
   if (!count) return { success: false, error: "Registra al menos una actividad antes de marcar la salida." };
 
+  const dailySummary = String(formData.get("dailySummary") ?? "").trim();
+  if (!dailySummary || dailySummary.length > 250) return { success: false, error: "Resume la actividad general de la jornada en hasta 250 caracteres." };
+  let evidencePaths: string[];
+  try { evidencePaths = await uploadAttendanceEvidence(admin, profile.user_id, formData); }
+  catch (error) { return { success: false, error: error instanceof Error ? error.message : "No fue posible cargar la evidencia." }; }
+
   const location = locationFrom(formData);
-  const { error } = await admin
+  const { data: closedSession, error } = await admin
     .from("attendance_sessions")
     .update({
       status: "closed",
       exit_time: parsed.data.exitTime,
       exit_recorded_at: new Date().toISOString(),
       declared_minutes: declaredHoursToMinutes(parsed.data.declaredHours),
+      daily_summary: dailySummary,
+      evidence_paths: evidencePaths,
+      evidence_required: true,
       exit_location_status: location.status,
       exit_latitude: location.status === "granted" ? location.latitude : null,
       exit_longitude: location.status === "granted" ? location.longitude : null,
@@ -241,8 +271,10 @@ export async function closeLiveAttendance(formData: FormData): Promise<Result> {
     })
     .eq("id", session.id)
     .eq("consultant_user_id", profile.user_id)
-    .eq("status", "open");
-  if (error) return { success: false, error: "No fue posible cerrar la jornada. Inténtalo nuevamente." };
+    .eq("status", "open")
+    .select("id")
+    .maybeSingle();
+  if (error || !closedSession) { await removeAttendanceEvidence(admin, evidencePaths); return { success: false, error: "No fue posible cerrar la jornada. Inténtalo nuevamente." }; }
   refreshAttendance();
   return { success: true };
 }
