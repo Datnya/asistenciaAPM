@@ -1,3 +1,4 @@
+import { getCurrentPeriodMetrics } from "@/lib/reports/current-metrics";
 import { CalendarDays, Clock3, UsersRound } from "lucide-react";
 
 import { AttendanceAction, type OpenAttendance } from "@/components/consultant/attendance-action";
@@ -64,12 +65,7 @@ export default async function ConsultantPage({ searchParams }: { searchParams: P
     .gte("work_date", from)
     .lte("work_date", to)
     .order("work_date", { ascending: false });
-  const currentMonthFrom = `${today.slice(0, 7)}-01`;
-  const currentMonthTo = `${today.slice(0, 7)}-${String(new Date(currentYear, currentMonth, 0).getDate()).padStart(2, "0")}`;
-  const { data: monthlySessions } = from === currentMonthFrom && to === currentMonthTo
-    ? { data: closedSessions }
-    : await supabase.from("attendance_sessions").select("declared_minutes").eq("consultant_user_id", profile.user_id).eq("status", "closed").gte("work_date", currentMonthFrom).lte("work_date", currentMonthTo);
-  const totalMinutes = (monthlySessions ?? []).reduce((total, session) => total + (session.declared_minutes ?? 0), 0);
+  const { totalMinutes, days } = await getCurrentPeriodMetrics(profile.user_id);
   const closedSessionIds = (closedSessions ?? []).map((session) => session.id);
   const { data: closedActivities } = closedSessionIds.length
     ? await supabase
@@ -110,8 +106,8 @@ export default async function ConsultantPage({ searchParams }: { searchParams: P
         </div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <DashboardMetric icon={Clock3} label="Horas acumuladas del mes" value={formatDeclaredMinutes(totalMinutes)} />
-          <DashboardMetric icon={CalendarDays} label="Días con asistencia del mes" value={String(monthlySessions?.length ?? 0)} />
+          <DashboardMetric icon={Clock3} label="Horas acumuladas del período" value={formatDeclaredMinutes(totalMinutes)} />
+          <DashboardMetric icon={CalendarDays} label="Días con asistencia del período" value={String(days)} />
           <DashboardMetric
             icon={UsersRound}
             label="Cliente asignado hoy"

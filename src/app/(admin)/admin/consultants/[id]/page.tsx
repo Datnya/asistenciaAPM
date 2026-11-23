@@ -1,3 +1,4 @@
+import { getCurrentPeriodMetrics } from "@/lib/reports/current-metrics";
 import { ArrowLeft, CalendarDays, Clock3, Info } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,16 +31,12 @@ export default async function ConsultantDetailPage({ params, searchParams }: { p
   const monthPrefix = `${year}-${String(month ?? 1).padStart(2, "0")}`;
   const from = day ? `${monthPrefix}-${String(day).padStart(2, "0")}` : month ? `${monthPrefix}-01` : `${year}-01-01`;
   const to = day ? from : month ? `${monthPrefix}-${String(maxDay).padStart(2, "0")}` : `${year}-12-31`;
-  const currentMonthFrom = `${today.slice(0, 7)}-01`;
-  const currentMonthTo = `${today.slice(0, 7)}-${String(new Date(currentYear, currentMonth, 0).getDate()).padStart(2, "0")}`;
   const [consultant, clientNames] = await Promise.all([getConsultant(id), listActiveClientNames()]);
   if (!consultant) notFound();
-  const [attendance, monthlyAttendance] = await Promise.all([
+  const [attendance, { totalMinutes, days }] = await Promise.all([
     listConsultantAttendance(consultant.userId, from, to),
-    from === currentMonthFrom && to === currentMonthTo ? Promise.resolve(null) : listConsultantAttendance(consultant.userId, currentMonthFrom, currentMonthTo),
+    getCurrentPeriodMetrics(consultant.userId),
   ]);
-  const closedThisMonth = (monthlyAttendance ?? attendance).filter((session) => session.status === "closed");
-  const totalMinutes = closedThisMonth.reduce((total, session) => total + (session.declaredMinutes ?? 0), 0);
 
   const clientLabel = consultant.clients.length
     ? consultant.clients.map((client) => client.name).join(", ")
@@ -70,8 +67,8 @@ export default async function ConsultantDetailPage({ params, searchParams }: { p
         </div>
 
         <div className="mt-7 grid gap-5 md:grid-cols-2">
-          <DashboardMetric icon={Clock3} label="Horas acumuladas del mes" value={formatDeclaredMinutes(totalMinutes)} />
-          <DashboardMetric icon={CalendarDays} label="Días con asistencia del mes" value={String(closedThisMonth.length)} />
+          <DashboardMetric icon={Clock3} label="Horas acumuladas del período" value={formatDeclaredMinutes(totalMinutes)} />
+          <DashboardMetric icon={CalendarDays} label="Días con asistencia del período" value={String(days)} />
         </div>
 
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
