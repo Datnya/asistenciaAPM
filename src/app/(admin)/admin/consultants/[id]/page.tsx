@@ -1,3 +1,4 @@
+import { HistoryPeriodFilter, getHistoryPeriods } from "@/components/shared/history-period-filter";
 import { getCurrentPeriodMetrics } from "@/lib/reports/current-metrics";
 import { ArrowLeft, CalendarDays, Clock3, Info } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
-export default async function ConsultantDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string; day?: string }> }) {
+export default async function ConsultantDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string; day?: string; period?: string }> }) {
   await requireRole("admin");
   const { id } = await params;
   const filters = await searchParams;
@@ -29,8 +30,10 @@ export default async function ConsultantDetailPage({ params, searchParams }: { p
   const maxDay = month ? new Date(year, month, 0).getDate() : 0;
   const day = month && /^\d{1,2}$/.test(filters.day ?? "") && Number(filters.day) >= 1 && Number(filters.day) <= maxDay ? Number(filters.day) : null;
   const monthPrefix = `${year}-${String(month ?? 1).padStart(2, "0")}`;
-  const from = day ? `${monthPrefix}-${String(day).padStart(2, "0")}` : month ? `${monthPrefix}-01` : `${year}-01-01`;
-  const to = day ? from : month ? `${monthPrefix}-${String(maxDay).padStart(2, "0")}` : `${year}-12-31`;
+  const periods = await getHistoryPeriods(id);
+  const selectedPeriod = periods.find(period => period.id === filters.period);
+  const from = selectedPeriod?.start_date ?? (day ? `${monthPrefix}-${String(day).padStart(2, "0")}` : month ? `${monthPrefix}-01` : `${year}-01-01`);
+  const to = selectedPeriod?.end_date ?? (day ? from : month ? `${monthPrefix}-${String(maxDay).padStart(2, "0")}` : `${year}-12-31`);
   const [consultant, clientNames] = await Promise.all([getConsultant(id), listActiveClientNames()]);
   if (!consultant) notFound();
   const [attendance, { totalMinutes, days }] = await Promise.all([
@@ -73,7 +76,7 @@ export default async function ConsultantDetailPage({ params, searchParams }: { p
 
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
           <h2 className="text-[24px] font-bold tracking-[-0.03em]">Resumen de asistencias</h2>
-          <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
+          <form className="mt-4 flex flex-wrap items-end gap-3" method="get"><HistoryPeriodFilter periods={periods} selected={selectedPeriod?.id} />
             <label className="text-sm font-semibold text-[#344056]">Año<input className="admin-field mt-1" defaultValue={year} max={currentYear} min="1900" name="year" type="number" /></label>
             <label className="text-sm font-semibold text-[#344056]">Mes<select className="admin-field mt-1" defaultValue={month ?? "all"} name="month"><option value="all">Todo el año</option>{monthNames.map((name, index) => <option key={name} value={index + 1}>{name.charAt(0).toUpperCase() + name.slice(1)}</option>)}</select></label>
             <label className="text-sm font-semibold text-[#344056]">Día<select className="admin-field mt-1" defaultValue={day ?? "all"} name="day"><option value="all">Todos los días</option>{Array.from({ length: 31 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}</select></label>

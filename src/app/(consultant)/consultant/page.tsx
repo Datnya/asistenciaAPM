@@ -1,3 +1,4 @@
+import { HistoryPeriodFilter, getHistoryPeriods } from "@/components/shared/history-period-filter";
 import { getCurrentPeriodMetrics } from "@/lib/reports/current-metrics";
 import { CalendarDays, Clock3, UsersRound } from "lucide-react";
 
@@ -11,7 +12,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function ConsultantPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string; day?: string }> }) {
+export default async function ConsultantPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string; day?: string; period?: string }> }) {
   const { profile } = await requireRole("consultant");
   const filters = await searchParams;
   const today = getLimaWorkDate();
@@ -22,8 +23,10 @@ export default async function ConsultantPage({ searchParams }: { searchParams: P
   const maxDay = month ? new Date(year, month, 0).getDate() : 0;
   const day = month && /^\d{1,2}$/.test(filters.day ?? "") && Number(filters.day) >= 1 && Number(filters.day) <= maxDay ? Number(filters.day) : null;
   const prefix = `${year}-${String(month ?? 1).padStart(2, "0")}`;
-  const from = day ? `${prefix}-${String(day).padStart(2, "0")}` : month ? `${prefix}-01` : `${year}-01-01`;
-  const to = day ? from : month ? `${prefix}-${String(maxDay).padStart(2, "0")}` : `${year}-12-31`;
+  const periods = await getHistoryPeriods(profile.user_id);
+  const selectedPeriod = periods.find(period => period.id === filters.period);
+  const from = selectedPeriod?.start_date ?? (day ? `${prefix}-${String(day).padStart(2, "0")}` : month ? `${prefix}-01` : `${year}-01-01`);
+  const to = selectedPeriod?.end_date ?? (day ? from : month ? `${prefix}-${String(maxDay).padStart(2, "0")}` : `${year}-12-31`);
   const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
   const supabase = await createServerSupabaseClient();
   const { data: assignments } = await supabase
@@ -135,7 +138,7 @@ export default async function ConsultantPage({ searchParams }: { searchParams: P
 
         <section className="mt-5 overflow-hidden rounded-[18px] border border-[#eff0f2] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.045)] sm:p-6">
           <h2 className="text-[24px] font-bold tracking-[-0.03em]">Historial de jornadas</h2>
-          <form className="mt-4 flex flex-wrap items-end gap-3" method="get"><label className="text-sm font-semibold">Año<input className="consultant-field mt-1" defaultValue={year} max={currentYear} min="1900" name="year" type="number" /></label><label className="text-sm font-semibold">Mes<select className="consultant-field mt-1" defaultValue={month ?? "all"} name="month"><option value="all">Todo el año</option>{monthNames.map((name, index) => <option key={name} value={index + 1}>{name.charAt(0).toUpperCase() + name.slice(1)}</option>)}</select></label><label className="text-sm font-semibold">Día<select className="consultant-field mt-1" defaultValue={day ?? "all"} name="day"><option value="all">Todos los días</option>{Array.from({ length: 31 }, (_, index) => <option key={index} value={index + 1}>{index + 1}</option>)}</select></label><button className="min-h-12 rounded-xl bg-[#b0bf12] px-5 font-semibold text-black" type="submit">Aplicar filtros</button></form>
+          <form className="mt-4 flex flex-wrap items-end gap-3" method="get"><HistoryPeriodFilter periods={periods} selected={selectedPeriod?.id} /><label className="text-sm font-semibold">Año<input className="consultant-field mt-1" defaultValue={year} max={currentYear} min="1900" name="year" type="number" /></label><label className="text-sm font-semibold">Mes<select className="consultant-field mt-1" defaultValue={month ?? "all"} name="month"><option value="all">Todo el año</option>{monthNames.map((name, index) => <option key={name} value={index + 1}>{name.charAt(0).toUpperCase() + name.slice(1)}</option>)}</select></label><label className="text-sm font-semibold">Día<select className="consultant-field mt-1" defaultValue={day ?? "all"} name="day"><option value="all">Todos los días</option>{Array.from({ length: 31 }, (_, index) => <option key={index} value={index + 1}>{index + 1}</option>)}</select></label><button className="min-h-12 rounded-xl bg-[#b0bf12] px-5 font-semibold text-black" type="submit">Aplicar filtros</button></form>
           <AttendanceHistory sessions={closedAttendance} />
         </section>
       </section>
