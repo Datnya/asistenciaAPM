@@ -3,7 +3,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { formatDeclaredMinutes } from "@/lib/attendance/hours";
 
 import { RateCard } from "./rate-card";
-import { recordInvoice } from "./actions";
+import { InvoiceEntry } from "./invoice-entry";
 
 function formatBillingDate(date: string) { return date.split("-").reverse().join("/"); }
 const money = new Intl.NumberFormat("es-PE", {style:"currency",currency:"PEN"});
@@ -63,9 +63,9 @@ export default async function Billing({searchParams}: {searchParams: Promise<{cl
     {Array.from(groups, ([id, group]) => <section key={id ?? "unassigned"}><h2 className="mb-4 text-3xl font-bold">{group[0].client ?? "Cliente por revisar"}</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{["Consultor","Inicio","Fin","Emisión","Horas","Subtotal","IGV (18 %)","Total","Factura"].map(h=><th className="p-2" key={h}>{h}</th>)}</tr></thead>
     <tbody>{group.map(r=><tr className="border-t" key={r.id}><td className="p-2">{shortNames.get(r.consultant_user_id)}</td><td>{formatBillingDate(r.start_date)}</td><td>{formatBillingDate(r.end_date)}</td><td>{r.issued?formatBillingDate(r.issued):"Pendiente"}</td>
     <td>{formatDeclaredMinutes(r.minutes)}</td>{[r.base,r.tax,r.total].map((v,i)=><td className="whitespace-nowrap p-2" key={i}>{r.client_id?soles(v):"—"}</td>)}
-    <td>{r.number??(r.client_id && r.minutes>0 ? <details><summary className="cursor-pointer">Registrar factura</summary><form action={recordInvoice} className="space-y-2 p-2">
+    <td>{r.number??(r.client_id && r.minutes>0 ? <InvoiceEntry>
       <input type="hidden" name="period" value={r.id}/><input type="hidden" name="client" value={r.client_id}/><input type="hidden" name="rate" value={r.rate}/><input type="hidden" name="minutes" value={r.minutes}/>
-      <label>Número<input className={field} name="number" required maxLength={80}/></label><label>Fecha de emisión<input className={field} name="issued" type="date" required/></label><button className={button}>Registrar</button></form></details>:r.client_count>1?"Jornadas de varios clientes":"Sin horas facturables")}</td>
+      </InvoiceEntry>:r.client_count>1?"Jornadas de varios clientes":"Sin horas facturables")}</td>
 </tr>)}</tbody></table></div></section>)}
     {!rows.length && <p className="p-4">No hay períodos para esta selección.</p>}
   </main>;
