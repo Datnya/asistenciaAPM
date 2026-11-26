@@ -1,3 +1,4 @@
+import { EditInvoice } from "./edit-invoice";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { formatDeclaredMinutes } from "@/lib/attendance/hours";
@@ -58,12 +59,12 @@ export default async function Billing({searchParams}: {searchParams: Promise<{cl
     <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
       ["Períodos",rows.length],["Horas registradas",formatDeclaredMinutes(rows.reduce((s,r)=>s+r.minutes,0))],
       ["Facturado con IGV",soles(billed.reduce((s,r)=>s+r.total,0))],
-      ["Pendiente de emitir con IGV",soles(rows.filter(r=>!r.number && r.client_id).reduce((s,r)=>s+r.total,0))]
+      ["Total facturado sin IGV",soles(billed.reduce((s,r)=>s+r.base,0))]
     ].map(([label,value])=><div className="rounded-xl border bg-white p-4" key={label}><dt>{label}</dt><dd className="text-xl font-bold">{value}</dd></div>)}</dl>
-    {Array.from(groups, ([id, group]) => <section key={id ?? "unassigned"}><h2 className="mb-4 text-3xl font-bold">{group[0].client ?? "Cliente por revisar"}</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{["Consultor","Inicio","Fin","Emisión","Horas","Subtotal","IGV (18 %)","Total","Factura"].map(h=><th className="p-2" key={h}>{h}</th>)}</tr></thead>
-    <tbody>{group.map(r=><tr className="border-t" key={r.id}><td className="p-2">{shortNames.get(r.consultant_user_id)}</td><td>{formatBillingDate(r.start_date)}</td><td>{formatBillingDate(r.end_date)}</td><td>{r.issued?formatBillingDate(r.issued):"Pendiente"}</td>
+    {Array.from(groups, ([id, group]) => <section key={id ?? "unassigned"}><h2 className="mb-4 text-3xl font-bold">{group[0].client ?? "Cliente por revisar"}</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{["Consultor","Inicio","Fin","Fecha de emisión","Horas","Subtotal","IGV (18 %)","Total","Factura"].map(h=><th className={h === "Fecha de emisión" ? "bg-[#b0bf12] p-2 text-black" : "p-2"} key={h}>{h}</th>)}</tr></thead>
+    <tbody>{group.map(r=><tr className="border-t" key={r.id}><td className="p-2">{shortNames.get(r.consultant_user_id)}</td><td>{formatBillingDate(r.start_date)}</td><td>{formatBillingDate(r.end_date)}</td><td className="bg-[#b0bf12]/25 p-2 font-semibold">{r.issued?formatBillingDate(r.issued):"Pendiente"}</td>
     <td>{formatDeclaredMinutes(r.minutes)}</td>{[r.base,r.tax,r.total].map((v,i)=><td className="whitespace-nowrap p-2" key={i}>{r.client_id?soles(v):"—"}</td>)}
-    <td>{r.number??(r.client_id && r.minutes>0 ? <InvoiceEntry>
+    <td>{r.number ? <EditInvoice period={r.id} number={r.number} issued={r.issued}/> : (r.client_id && r.minutes>0 ? <InvoiceEntry>
       <input type="hidden" name="period" value={r.id}/><input type="hidden" name="client" value={r.client_id}/><input type="hidden" name="rate" value={r.rate}/><input type="hidden" name="minutes" value={r.minutes}/>
       </InvoiceEntry>:r.client_count>1?"Jornadas de varios clientes":"Sin horas facturables")}</td>
 </tr>)}</tbody></table></div></section>)}

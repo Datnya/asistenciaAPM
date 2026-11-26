@@ -22,3 +22,20 @@ export async function recordInvoice(form: FormData) {
   if (error) throw new Error("No se pudo registrar la factura. Actualiza la vista para revisar el período.");
   revalidatePath("/admin/billing");
 }
+
+export async function editInvoice(form: FormData) {
+  await requireRole("admin");
+  const fields = z.object({
+    period: z.string().uuid(), number: z.string().trim().min(1).max(80),
+    issued: z.string().date(), previousNumber: z.string(), previousIssued: z.string().date()
+  }).safeParse(Object.fromEntries(form));
+  if (!fields.success) return "Revisa el número y la fecha de emisión.";
+  const {period, number, issued, previousNumber, previousIssued} = fields.data;
+  const {data, error} = await createAdminSupabaseClient().from("period_invoices")
+    .update({number, issued}).eq("period_id", period)
+    .eq("number", previousNumber).eq("issued", previousIssued).select("period_id").maybeSingle();
+  if (error) return "No se pudo guardar la factura. Inténtalo de nuevo.";
+  if (!data) return "La factura cambió. Actualiza la página antes de editarla.";
+  revalidatePath("/admin/billing");
+  return "";
+}
