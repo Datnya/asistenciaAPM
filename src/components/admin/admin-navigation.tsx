@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { href: "/admin", label: "Dashboard", icon: House },
   { href: "/admin/monthly-report", label: "Reporte mensual", icon: FileSpreadsheet },
+  { href: "/admin/billing", label: "Facturación", icon: FileSpreadsheet },
   { href: "/admin/profile", label: "Perfil", icon: UserRound },
 ] as const;
 
@@ -16,7 +17,7 @@ export function AdminNavigation({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Navegación de administración" className={cn(mobile ? "flex gap-2" : "space-y-2")}>
+    <nav aria-label="Navegación de administración" className={cn(mobile ? "flex flex-wrap gap-2" : "space-y-2")}>
       {navigation.map((item) => {
         const isActive = item.href === "/admin"
           ? pathname === item.href || pathname.startsWith("/admin/consultants/")

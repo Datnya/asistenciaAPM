@@ -1,0 +1,54 @@
+import { requireRole } from "@/lib/auth/guards";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { formatDeclaredMinutes } from "@/lib/attendance/hours";
+import { formatLimaDate } from "@/lib/attendance/lima";
+import { recordInvoice, saveRate } from "./actions";
+
+const money = new Intl.NumberFormat("es-PE", {style:"currency",currency:"PEN"});
+const soles = (cents: number) => money.format(cents / 100);
+const field = "admin-field mt-1";
+const button = "rounded-lg bg-[#b0bf12] px-4 py-2 font-semibold text-black";
+export default async function Billing({searchParams}: {searchParams: Promise<{client?:string; consultant?:string}>}) {
+  await requireRole("admin");
+  const filters = await searchParams;
+  const db = createAdminSupabaseClient();
+  const [clients, consultants, rates] = await Promise.all([
+    db.from("clients").select("id,name").order("name"),
+    db.from("profiles").select("user_id,first_name,last_name").eq("role","consultant").order("first_name"),
+    db.from("billing_rates").select("client_id,rate")
+  ]);
+  if (clients.error || consultants.error || rates.error) throw new Error("No se pudo cargar la configuración de facturación.");
+  let query = db.from("billing_overview").select("*").order("start_date",{ascending:false}).order("id");
+  if (filters.client) query=query.eq("client_id",filters.client);
+  if (filters.consultant) query=query.eq("consultant_user_id",filters.consultant);
+  const {data,error}=await query;
+  if(error) throw new Error("No se pudo cargar la facturación.");
+  const rows=data.map(row=>{
+    const base=Math.round(row.minutes * Math.round(row.rate*100)/60);
+    const tax=Math.round(base*18/100);
+    return {...row,base,tax,total:base+tax};
+  });
+  const client=clients.data.find(c=>c.id===filters.client);
+  const billed=rows.filter(r=>r.number);
+  return <main className="space-y-6 p-5 lg:p-9">
+    <h1 className="text-3xl font-bold">Facturación por períodos</h1>
+    <form className="flex flex-wrap items-end gap-3">
+      <label>Cliente<select name="client" className={field} defaultValue={filters.client}><option value="">Todos los clientes</option>{clients.data.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Consultor<select name="consultant" className={field} defaultValue={filters.consultant}><option value="">Todos los consultores</option>{consultants.data.map(c=><option key={c.user_id} value={c.user_id}>{c.first_name} {c.last_name}</option>)}</select></label>
+      <button className={button}>Aplicar filtros</button>
+    </form>
+    {client ? <form action={saveRate} className="flex flex-wrap items-end gap-3"><input type="hidden" name="client" value={client.id}/><label>Tarifa por hora para {client.name} (S/)<input className={field} key={client.id} name="rate" required type="number" step=".01" min=".01" defaultValue={rates.data.find(r=>r.client_id===client.id)?.rate??89}/></label><button className={button}>Guardar tarifa</button></form>:<p>Selecciona un cliente para editar su tarifa por hora.</p>}
+    <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
+      ["Períodos",rows.length],["Horas registradas",formatDeclaredMinutes(rows.reduce((s,r)=>s+r.minutes,0))],
+      ["Facturado con IGV",soles(billed.reduce((s,r)=>s+r.total,0))],
+      ["Pendiente de emitir con IGV",soles(rows.filter(r=>!r.number && r.client_id).reduce((s,r)=>s+r.total,0))]
+    ].map(([label,value])=><div className="rounded-xl border bg-white p-4" key={label}><dt>{label}</dt><dd className="text-xl font-bold">{value}</dd></div>)}</dl>
+    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{["Cliente / Consultor","Inicio","Fin","Emisión","Factura","Horas","S/ por hora","Subtotal","IGV (18 %)","Total"].map(h=><th className="p-2" key={h}>{h}</th>)}</tr></thead>
+    <tbody>{rows.map(r=><tr className="border-t" key={r.id}><td className="p-2"><strong>{r.client??"Cliente por revisar"}</strong><br/>{r.consultant}</td><td>{formatLimaDate(r.start_date)}</td><td>{formatLimaDate(r.end_date)}</td><td>{r.issued?formatLimaDate(r.issued):"Pendiente"}</td>
+    <td>{r.number??(r.client_id && r.minutes>0 ? <details><summary className="cursor-pointer">Registrar factura</summary><form action={recordInvoice} className="space-y-2 p-2">
+      <input type="hidden" name="period" value={r.id}/><input type="hidden" name="client" value={r.client_id}/><input type="hidden" name="rate" value={r.rate}/><input type="hidden" name="minutes" value={r.minutes}/>
+      <label>Número<input className={field} name="number" required maxLength={80}/></label><label>Fecha de emisión<input className={field} name="issued" type="date" required/></label><button className={button}>Registrar</button></form></details>:r.client_count>1?"Jornadas de varios clientes":"Sin horas facturables")}</td>
+    <td>{formatDeclaredMinutes(r.minutes)}</td>{[Math.round(r.rate*100),r.base,r.tax,r.total].map((v,i)=><td className="whitespace-nowrap p-2" key={i}>{r.client_id?soles(v):"—"}</td>)}</tr>)}</tbody></table>
+    {!rows.length && <p className="p-4">No hay períodos para esta selección.</p>}</div>
+  </main>;
+}
